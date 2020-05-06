@@ -1,0 +1,16 @@
+frameCnt: 128
+numPar: 4
+parNames: [Omega_m, sigma_8, N_spec, H_0]
+sourceDir: {
+  csc: /global/cscratch1/sd/balewski/cosmoUniverse_2019_05_4parE_peter/,
+  mtd2:  /global/cscratch1/balewski_mdt2/,
+  tmp: /tmp/,
+  prj: /data/slz839/cosmoflow/,
+  cfs: /data/slz839/cosmoflow/,
+  smt: /gpfs/alpine/ast153/scratch/balewski/cosmoUniverse_2019_05_4parE/}
+subDir: multiScale_tryG/
+fnameTmpl: PeterA_2019_05_4parE-rec*.h5
+splitIdx:
+  test: [20]
+  val:  [20]
+  train: [21,22,23]
