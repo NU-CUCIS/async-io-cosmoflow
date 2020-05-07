@@ -80,18 +80,26 @@ class cosmoflow:
             batch_index.append(batch_list)
         self.batch_index = np.array(batch_index)
 
-    def read_samples (self, batch_id):
+    def read_train_samples (self, batch_id):
+        # Pick the current file index.
         my_file_index = self.file_index[int(batch_id.numpy() / self.samples_per_file)]
+        # Pick the batch index within the selected file.
         my_batch_index = int(batch_id.numpy() % self.samples_per_file)
         index = self.batch_index[my_file_index][my_batch_index]
         print ("Reading sample" + str(index) + " from " + self.train_files[my_file_index])
+
+        '''
+        TODO: Open all the files before the training.
+        '''
         # Read samples [index : index+batch_size]
-        samples = np.zeros((128,128,128,12))
-        labels = np.zeros((4))
-        return samples, labels
+        f = h5py.File(self.train_files[my_file_index], 'r')
+        images = f['3Dmap'][index : index + self.batch_size]
+        labels = f['unitPar'][index : index + self.batch_size]
+        f.close()
+        return images, labels
 
     def train_dataset (self):
         dataset = tf.data.Dataset.from_tensor_slices(np.arange(self.num_local_batches))
-        dataset = dataset.map(lambda x: tf.py_function(self.read_samples, inp=[x], Tout=[tf.float32, tf.float32]))
+        dataset = dataset.map(lambda x: tf.py_function(self.read_train_samples, inp=[x], Tout=[tf.float32, tf.float32]))
         dataset = dataset.repeat()
         return dataset.__iter__()
