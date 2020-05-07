@@ -10,3 +10,5 @@ from feeder import cosmoflow
 if __name__ == "__main__":
     ds = cosmoflow("test.yaml")
     ds.shuffle()
+    train_ds = ds.train_dataset()
+    images, labels = train_ds.next()

@@ -46,10 +46,6 @@ class cosmoflow:
                                        "PeterA_2019_05_4parE-rec" +
                                        str(file_name[1]) +
                                        ".h5" for file_name in enumerate(self.test_files)]
-                    '''
-                    self.train_files = [str(file_name[1]) for file_name in enumerate(self.train_files)]
-                    self.test_files = [str(file_name[1]) for file_name in enumerate(self.test_files)]
-                    '''
 
             print ("Number of samples per file: " + str(self.samples_per_file))
             print ("Label size: " + str(self.label_size))
@@ -67,9 +63,8 @@ class cosmoflow:
         # Create an index array for data shuffling.
         num_files = len(self.train_files)
         self.num_local_batches = int((num_files * self.samples_per_file) / self.batch_size)
-        #self.batch_index = np.zeros((self.num_local_batches))
 
-    def shuffle(self):
+    def shuffle (self):
         rng = np.random.default_rng()
 
         # First, shuffle the files.
@@ -84,3 +79,19 @@ class cosmoflow:
             rng.shuffle(batch_list)
             batch_index.append(batch_list)
         self.batch_index = np.array(batch_index)
+
+    def read_samples (self, batch_id):
+        my_file_index = self.file_index[int(batch_id.numpy() / self.samples_per_file)]
+        my_batch_index = int(batch_id.numpy() % self.samples_per_file)
+        index = self.batch_index[my_file_index][my_batch_index]
+        print ("Reading sample" + str(index) + " from " + self.train_files[my_file_index])
+        # Read samples [index : index+batch_size]
+        samples = np.zeros((128,128,128,12))
+        labels = np.zeros((4))
+        return samples, labels
+
+    def train_dataset (self):
+        dataset = tf.data.Dataset.from_tensor_slices(np.arange(self.num_local_batches))
+        dataset = dataset.map(lambda x: tf.py_function(self.read_samples, inp=[x], Tout=[tf.float32, tf.float32]))
+        dataset = dataset.repeat()
+        return dataset.__iter__()
