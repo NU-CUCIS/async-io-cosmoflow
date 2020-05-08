@@ -22,10 +22,15 @@ def get_parser():
 if __name__ == "__main__":
     args = get_parser()
 
+    # Get the training dataset.
     ds = cosmoflow("test.yaml", batch_size = args.batch_size)
     ds.shuffle()
     train_ds = ds.train_dataset()
+
+    # Get the model.
     cosmo_model = model()
     mymodel = cosmo_model.build_model()
+
+    # Perform the training.
     for i in range (10):
         images, labels = train_ds.next()
