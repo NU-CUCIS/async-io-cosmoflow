@@ -82,9 +82,9 @@ class cosmoflow:
 
     def read_train_samples (self, batch_id):
         # Pick the current file index.
-        my_file_index = self.file_index[int(batch_id.numpy() / self.samples_per_file)]
+        my_file_index = self.file_index[int(batch_id.numpy() / int(self.samples_per_file / self.batch_size))]
         # Pick the batch index within the selected file.
-        my_batch_index = int(batch_id.numpy() % self.samples_per_file)
+        my_batch_index = int(batch_id.numpy() % int(self.samples_per_file / self.batch_size))
         index = self.batch_index[my_file_index][my_batch_index]
         print ("Reading batch" + str(index) + " of size " + str(self.batch_size) + " from " + self.train_files[my_file_index])
 
@@ -102,4 +102,4 @@ class cosmoflow:
         dataset = tf.data.Dataset.from_tensor_slices(np.arange(self.num_local_batches))
         dataset = dataset.map(lambda x: tf.py_function(self.read_train_samples, inp=[x], Tout=[tf.float32, tf.float32]))
         dataset = dataset.repeat()
-        return dataset.__iter__()
+        return dataset
