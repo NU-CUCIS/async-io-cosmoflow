@@ -7,6 +7,7 @@ Northwestern University
 import tensorflow as tf
 import time
 import argparse
+from tqdm import tqdm
 from tensorflow.keras.losses import MeanAbsoluteError
 from tensorflow.keras.metrics import Mean
 from tensorflow.keras.optimizers import Adam
@@ -25,12 +26,15 @@ def get_parser():
     return args
 
 class Trainer:
-    def __init__ (self, model, lr = 1e-4, checkpoint_dir = "./checkpoint"):
+    def __init__ (self, model, dataset, num_epochs, checkpoint_dir = "./checkpoint"):
+        self.num_epochs = num_epochs
+        self.dataset = dataset
+        self.model = model.build_model()
         self.lr = PiecewiseConstantDecay(boundaries = [100],
                                          values = [1e-4, 5e-5])
         self.loss = MeanAbsoluteError()
         self.checkpoint = tf.train.Checkpoint(step = tf.Variable(0),
-                                              model = model,
+                                              model = self.model,
                                               optimizer = Adam(self.lr))
         self.checkpoint_manager = tf.train.CheckpointManager(checkpoint = self.checkpoint,
                                                              directory = checkpoint_dir,
@@ -50,9 +54,9 @@ class Trainer:
         self.checkpoint.optimizer.apply_gradients(zip(gradients, self.checkpoint.model.trainable_variables))
         return loss
 
-    def train (self, dataset, num_iterations, evaluation_interval):
-        train_dataset = dataset.train_dataset()
-        valid_dataset = dataset.valid_dataset()
+    def train (self, num_iterations, evaluation_interval):
+        train_dataset = self.dataset.train_dataset()
+        valid_dataset = self.dataset.valid_dataset()
         loss_mean = Mean()
         self.start_time = time.perf_counter()
 
@@ -66,13 +70,13 @@ class Trainer:
 
             # Evaluate the current model using the validation data.
             if (self.checkpoint.step.numpy() % evaluation_interval) == 0:
-                print ("Evaluating the current model using " + str(dataset.num_valid_batches) + " validation batches.")
+                print ("Evaluating the current model using " + str(self.dataset.num_valid_batches) + " validation batches.")
                 train_loss = loss_mean.result()
                 loss_mean.reset_states()
                 timing = time.perf_counter() - self.start_time
-                valid_loss = self.evaluate(valid_dataset, dataset.num_valid_batches)
+                valid_loss = self.evaluate(valid_dataset, self.dataset.num_valid_batches)
                 self.checkpoint_manager.save()
-                dataset.shuffle()
+                self.dataset.shuffle()
                 self.start_time = time.perf_counter()
 
                 print ("Iteration " + str(self.checkpoint.step.numpy()) + "/" + str(num_iterations) +\
@@ -96,10 +100,7 @@ if __name__ == "__main__":
 
     # Get the model.
     cosmo_model = model()
-    mymodel = cosmo_model.build_model()
 
     # Perform the training.
-    trainer = Trainer(model = mymodel)
-    trainer.train(dataset,
-                  num_iterations = 100,
-                  evaluation_interval = 10)
+    trainer = Trainer(cosmo_model, dataset, args.epochs)
+    trainer.train(num_iterations = 100, evaluation_interval = 10)
