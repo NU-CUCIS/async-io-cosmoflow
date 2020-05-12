@@ -16,30 +16,30 @@ class model ():
 
     def build_model(self):
         x_in = Input(shape = (128, 128, 128, 12), name = "input")
-        h = Conv3D(16, self.kernel_size, activation = 'linear', name = 'conv1')(x_in)
+        h = Conv3D(16, self.kernel_size, padding = 'same', activation = 'linear', name = 'conv1')(x_in)
         h = LeakyReLU(name = 'relu1')(h)
         h = AveragePooling3D(pool_size = self.pool_size, name = 'pool1')(h)
 
-        h = Conv3D(32, self.kernel_size, activation = 'linear', name = 'conv2')(h)
+        h = Conv3D(32, self.kernel_size, padding = 'same', activation = 'linear', name = 'conv2')(h)
         h = LeakyReLU(name = 'relu2')(h)
         h = AveragePooling3D(pool_size = self.pool_size, name = 'pool2')(h)
 
-        h = Conv3D(64, self.kernel_size, activation = 'linear', name = 'conv3')(h)
+        h = Conv3D(64, self.kernel_size, padding = 'same', activation = 'linear', name = 'conv3')(h)
         h = LeakyReLU(name = 'relu3')(h)
         h = AveragePooling3D(pool_size = self.pool_size, name = 'pool3')(h)
 
-        h = Conv3D(128, self.kernel_size, activation = 'linear', name = 'conv4')(h)
+        h = Conv3D(128, self.kernel_size, padding = 'same', activation = 'linear', name = 'conv4')(h)
         h = LeakyReLU(name = 'relu4')(h)
         h = AveragePooling3D(pool_size = self.pool_size, name = 'pool4')(h)
 
-        h = Conv3D(256, self.kernel_size, activation = 'linear', name = 'conv5')(h)
+        h = Conv3D(256, self.kernel_size, padding = 'same', activation = 'linear', name = 'conv5')(h)
         h = LeakyReLU(name = 'relu5')(h)
         h = AveragePooling3D(pool_size = self.pool_size, name = 'pool5')(h)
 
-        h = Conv3D(256, self.kernel_size, activation = 'linear', name = 'conv5')(h)
+        h = Conv3D(256, self.kernel_size, padding = 'same', activation = 'linear', name = 'conv6')(h)
         h = LeakyReLU(name = 'relu6')(h)
 
-        h = Conv3D(256, self.kernel_size, activation = 'linear', name = 'conv5')(h)
+        h = Conv3D(256, self.kernel_size, padding = 'same', activation = 'linear', name = 'conv7')(h)
         h = LeakyReLU(name = 'relu7')(h)
 
         h = Flatten(name = 'pool_to_full')(h)
