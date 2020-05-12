@@ -13,4 +13,4 @@ fnameTmpl: PeterA_2019_05_4parE-rec*.h5
 splitIdx:
   test: [20]
   val:  [20]
-  train: [21,22,23]
+  train: [21]

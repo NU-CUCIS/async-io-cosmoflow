@@ -105,7 +105,7 @@ class cosmoflow:
         my_batch_index = int(batch_id.numpy() % int(self.samples_per_file / self.batch_size))
         index = my_batch_index * self.batch_size
 
-        print ("Reading samples [" + str(index) + ":" + str(index + self.batch_size) + "] from file " + str(self.valid_files[my_file_index]))
+        #print ("Reading samples [" + str(index) + ":" + str(index + self.batch_size) + "] from file " + str(self.valid_files[my_file_index]))
         '''
         TODO: Open all the files before the training.
         '''
@@ -120,10 +120,10 @@ class cosmoflow:
         dataset = tf.data.Dataset.from_tensor_slices(np.arange(self.num_train_batches))
         dataset = dataset.map(lambda x: tf.py_function(self.read_train_samples, inp=[x], Tout=[tf.float32, tf.float32]))
         dataset = dataset.repeat()
-        return dataset
+        return dataset.__iter__()
 
     def valid_dataset (self):
         dataset = tf.data.Dataset.from_tensor_slices(np.arange(self.num_valid_batches))
         dataset = dataset.map(lambda x: tf.py_function(self.read_valid_samples, inp=[x], Tout=[tf.float32, tf.float32]))
         dataset = dataset.repeat()
-        return dataset
+        return dataset.__iter__()
