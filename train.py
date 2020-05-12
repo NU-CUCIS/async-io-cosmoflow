@@ -50,31 +50,49 @@ class Trainer:
         self.checkpoint.optimizer.apply_gradients(zip(gradients, self.checkpoint.model.trainable_variables))
         return loss
 
-    def train (self, train_dataset, valid_dataset, num_iterations, evaluation_interval):
+    def train (self, dataset, num_iterations, evaluation_interval):
+        train_dataset = dataset.train_dataset()
+        valid_dataset = dataset.valid_dataset()
         loss_mean = Mean()
         self.start_time = time.perf_counter()
 
+        # Train the model for the given number of iterations.
         for data, label in train_dataset.take(num_iterations - self.checkpoint.step.numpy()):
             self.checkpoint.step.assign_add(1)
+            # Go for a mini-batch.
             loss = self.train_step(data, label)
             loss_mean(loss)
+            print ("Training loss at iter" + str(self.checkpoint.step.numpy()) + ": " + str(loss.numpy()))
 
-            if self.checkpoint.step.numpy() % evaluation_interval == 0:
-                loss_value = loss_mean.result()
+            # Evaluate the current model using the validation data.
+            if (self.checkpoint.step.numpy() % evaluation_interval) == 0:
+                print ("Evaluating the current model using " + str(dataset.num_valid_batches) + " validation batches.")
+                train_loss = loss_mean.result()
                 loss_mean.reset_states()
                 timing = time.perf_counter() - self.start_time
-                print ("Iteration " + str(self.checkpoint.step.numpy()) + "/" + str(num_iterations) + " loss = " + str(loss_value.numpy()) + " acc = " + "timing: " + str(timing) + " sec")
+                valid_loss = self.evaluate(valid_dataset, dataset.num_valid_batches)
                 self.checkpoint_manager.save()
+                dataset.shuffle()
                 self.start_time = time.perf_counter()
+
+                print ("Iteration " + str(self.checkpoint.step.numpy()) + "/" + str(num_iterations) +\
+                       " training loss = " + str(train_loss.numpy()) +\
+                       " validation loss = " + str(valid_loss.numpy()) +\
+                       " training timing: " + str(timing) + " sec")
+
+    def evaluate (self, dataset, num_valid_batches):
+        loss_mean = Mean()
+        for data, label in dataset.take(num_valid_batches):
+            prediction = self.checkpoint.model(data)
+            loss = self.loss(label, prediction)
+            loss_mean(loss)
+        return loss_mean.result()
 
 if __name__ == "__main__":
     args = get_parser()
 
     # Get the training dataset.
-    ds = cosmoflow("test.yaml", batch_size = args.batch_size)
-    ds.shuffle()
-    train_ds = ds.train_dataset()
-    valid_ds = ds.train_dataset()
+    dataset = cosmoflow("test.yaml", batch_size = args.batch_size)
 
     # Get the model.
     cosmo_model = model()
@@ -82,4 +100,6 @@ if __name__ == "__main__":
 
     # Perform the training.
     trainer = Trainer(model = mymodel)
-    trainer.train(train_ds, valid_ds, num_iterations = 100, evaluation_interval = 10)
+    trainer.train(dataset,
+                  num_iterations = 100,
+                  evaluation_interval = 10)
