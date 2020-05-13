@@ -7,6 +7,7 @@ Northwestern University
 import tensorflow as tf
 import time
 import argparse
+import horovod.tensorflow as hvd 
 from tqdm import tqdm
 from tensorflow.keras.losses import MeanAbsoluteError
 from tensorflow.keras.metrics import Mean
@@ -50,6 +51,7 @@ class Trainer:
         with tf.GradientTape() as tape:
             prediction = self.checkpoint.model(data, training = True)
             loss = self.loss(label, prediction)
+        tape = hvd.DistributedGradientTape(tape)
         gradients = tape.gradient(loss, self.checkpoint.model.trainable_variables)
         self.checkpoint.optimizer.apply_gradients(zip(gradients, self.checkpoint.model.trainable_variables))
         return loss
@@ -73,20 +75,26 @@ class Trainer:
                 end = time.perf_counter()
                 # Computation
                 loss = self.train_step(data, label)
-                end2 = time.perf_counter()
                 loss_mean(loss)
+                end2 = time.perf_counter()
+
+                if epoch_id == 0 and i == 0:
+                    hvd.broadcast_variables(self.checkpoint.model.variables, root_rank = 0)
+                    hvd.broadcast_variables(self.checkpoint.optimizer.variables(), root_rank = 0)
+
                 if i > 0:
                     io_time_mean(end - start)
                     comp_time_mean(end2 - end)
 
             timing = time.perf_counter() - self.start_time
             print ("------- batch reading: " + str(io_time_mean.result().numpy()) + " batch processing: " + str(comp_time_mean.result().numpy()))
-            io_time_mean.reset_states()
-            comp_time_mean.reset_states()
             train_loss = loss_mean.result()
             loss_mean.reset_states()
+            io_time_mean.reset_states()
+            comp_time_mean.reset_states()
 
-            self.checkpoint_manager.save()
+            if hvd.rank() == 0:
+                self.checkpoint_manager.save()
             self.dataset.shuffle()
 
             # Evaluate the current model using the validation data.
@@ -116,6 +124,16 @@ class Trainer:
         return loss_mean.result()
 
 if __name__ == "__main__":
+    hvd.init()
+
+    # Find a GPU for each process.
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    for gpu in gpus:
+        tf.config.experimental.set_memory_growth(gpu, True)
+    if gpus:
+        tf.config.experimental.set_visible_devices(gpus[hvd.local_rank()], 'GPU')
+        print ("Rank " + str(hvd.local_rank()) + " runs on GPU " + str(gpus[hvd.local_rank()]))
+
     args = get_parser()
 
     # Get the training dataset.
