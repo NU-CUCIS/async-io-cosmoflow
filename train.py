@@ -17,7 +17,7 @@ from model import model
 
 def get_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-b", "--batch_size", type = int, default = 4,
+    parser.add_argument("-b", "--batch_size", type = int, default = 8,
                         help = "number of training samples for each mini-batch")
     parser.add_argument("-e", "--epochs", type = int, default = 1,
                         help = "number of epochs")

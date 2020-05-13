@@ -87,6 +87,7 @@ class cosmoflow:
         # Pick the batch index within the selected file.
         my_batch_index = int(batch_id.numpy() % int(self.samples_per_file / self.batch_size))
         index = self.batch_index[my_file_index][my_batch_index] * self.batch_size
+        #print ("batch_id: " + str(batch_id.numpy()) + " my_file_index: " + str(my_file_index) + " my_batch_index: " + str(my_batch_index) + " index: " + str(index) + " file: " + self.train_files[my_file_index])
 
         '''
         TODO: Open all the files before the training.
