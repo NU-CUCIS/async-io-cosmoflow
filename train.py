@@ -64,16 +64,25 @@ class Trainer:
             self.start_time = time.perf_counter()
 
             # Train the model.
+            io_time_mean = Mean()
+            comp_time_mean = Mean()
             for i in tqdm(range(self.dataset.num_train_batches)):
                 start = time.perf_counter()
+                # I/O
                 data, label = train_dataset.next()
                 end = time.perf_counter()
+                # Computation
                 loss = self.train_step(data, label)
                 end2 = time.perf_counter()
-                print ("batch reading: " + str(end - start) + " batch processing: " + str(end2 - end))
                 loss_mean(loss)
+                if i > 0:
+                    io_time_mean(end - start)
+                    comp_time_mean(end2 - end)
 
             timing = time.perf_counter() - self.start_time
+            print ("------- batch reading: " + str(io_time_mean.result().numpy()) + " batch processing: " + str(comp_time_mean.result().numpy()))
+            io_time_mean.reset_states()
+            comp_time_mean.reset_states()
             train_loss = loss_mean.result()
             loss_mean.reset_states()
 
@@ -90,10 +99,10 @@ class Trainer:
                    " training timing: " + str(timing) + " sec")
 
             # Write the loss values to the output files.
-            f = open("train_loss.txt", "a")
+            f = open("loss-train.txt", "a")
             f.write(str(train_loss.numpy()) + "\n")
             f.close()
-            f = open("valid_loss.txt", "a")
+            f = open("loss-valid.txt", "a")
             f.write(str(valid_loss.numpy()) + "\n")
             f.close()
 

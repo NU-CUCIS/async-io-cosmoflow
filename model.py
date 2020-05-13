@@ -6,6 +6,7 @@ from tensorflow.keras.layers import Dense
 from tensorflow.keras.layers import AveragePooling3D
 from tensorflow.keras.layers import LeakyReLU
 from tensorflow.keras.layers import Flatten
+from tensorflow.keras.layers import BatchNormalization
 
 class model ():
     def __init__ (self, num_filters = 16, kernel_size = 3, pool_size = 2):
@@ -18,29 +19,36 @@ class model ():
         x_in = Input(shape = (128, 128, 128, 12), name = "input")
         h = Conv3D(16, self.kernel_size, padding = 'same', activation = 'linear', name = 'conv1')(x_in)
         h = LeakyReLU(name = 'relu1')(h)
+        h = BatchNormalization()(h)
         h = AveragePooling3D(pool_size = self.pool_size, name = 'pool1')(h)
 
         h = Conv3D(32, self.kernel_size, padding = 'same', activation = 'linear', name = 'conv2')(h)
         h = LeakyReLU(name = 'relu2')(h)
+        h = BatchNormalization()(h)
         h = AveragePooling3D(pool_size = self.pool_size, name = 'pool2')(h)
 
         h = Conv3D(64, self.kernel_size, padding = 'same', activation = 'linear', name = 'conv3')(h)
         h = LeakyReLU(name = 'relu3')(h)
+        h = BatchNormalization()(h)
         h = AveragePooling3D(pool_size = self.pool_size, name = 'pool3')(h)
 
         h = Conv3D(128, self.kernel_size, padding = 'same', activation = 'linear', name = 'conv4')(h)
         h = LeakyReLU(name = 'relu4')(h)
+        h = BatchNormalization()(h)
         h = AveragePooling3D(pool_size = self.pool_size, name = 'pool4')(h)
 
         h = Conv3D(256, self.kernel_size, padding = 'same', activation = 'linear', name = 'conv5')(h)
         h = LeakyReLU(name = 'relu5')(h)
+        h = BatchNormalization()(h)
         h = AveragePooling3D(pool_size = self.pool_size, name = 'pool5')(h)
 
         h = Conv3D(256, self.kernel_size, padding = 'same', activation = 'linear', name = 'conv6')(h)
         h = LeakyReLU(name = 'relu6')(h)
+        h = BatchNormalization()(h)
 
         h = Conv3D(256, self.kernel_size, padding = 'same', activation = 'linear', name = 'conv7')(h)
         h = LeakyReLU(name = 'relu7')(h)
+        h = BatchNormalization()(h)
 
         h = Flatten(name = 'pool_to_full')(h)
         h = Dense(2048, activation = 'linear', name = 'full1')(h)
