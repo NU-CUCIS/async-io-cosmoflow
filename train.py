@@ -65,8 +65,12 @@ class Trainer:
 
             # Train the model.
             for i in tqdm(range(self.dataset.num_train_batches)):
+                start = time.perf_counter()
                 data, label = train_dataset.next()
+                end = time.perf_counter()
                 loss = self.train_step(data, label)
+                end2 = time.perf_counter()
+                print ("batch reading: " + str(end - start) + " batch processing: " + str(end2 - end))
                 loss_mean(loss)
 
             timing = time.perf_counter() - self.start_time
