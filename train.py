@@ -10,6 +10,7 @@ import argparse
 import horovod.tensorflow as hvd 
 from tqdm import tqdm
 from tensorflow.keras.losses import MeanAbsoluteError
+from tensorflow.keras.losses import MeanSquaredError
 from tensorflow.keras.metrics import Mean
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.optimizers.schedules import PiecewiseConstantDecay
@@ -34,7 +35,7 @@ class Trainer:
         self.model.summary()
         self.lr = PiecewiseConstantDecay(boundaries = [100],
                                          values = [1e-4, 5e-5])
-        self.loss = MeanAbsoluteError()
+        self.loss = MeanSquaredError()
         self.checkpoint = tf.train.Checkpoint(epoch = tf.Variable(0),
                                               model = self.model,
                                               optimizer = Adam(self.lr))
@@ -48,11 +49,12 @@ class Trainer:
             self.checkpoint.restore(self.checkpoint_manager.latest_checkpoint)
             print ("Model restored from checkpoint at epoch " + str(self.checkpoint.epoch.numpy()))
 
+    @tf.function
     def train_step (self, data, label):
         with tf.GradientTape() as tape:
             prediction = self.checkpoint.model(data, training = True)
             loss = self.loss(label, prediction)
-        tape = hvd.DistributedGradientTape(tape)
+        #tape = hvd.DistributedGradientTape(tape)
         gradients = tape.gradient(loss, self.checkpoint.model.trainable_variables)
         self.checkpoint.optimizer.apply_gradients(zip(gradients, self.checkpoint.model.trainable_variables))
         return loss
@@ -82,34 +84,35 @@ class Trainer:
                 print ("comp: " + str(end - start))
                 loss_mean(loss)
 
-                if epoch_id == 0 and i == 0:
-                    hvd.broadcast_variables(self.checkpoint.model.variables, root_rank = 0)
-                    hvd.broadcast_variables(self.checkpoint.optimizer.variables(), root_rank = 0)
+                #if epoch_id == 0 and i == 0:
+                #    hvd.broadcast_variables(self.checkpoint.model.variables, root_rank = 0)
+                #    hvd.broadcast_variables(self.checkpoint.optimizer.variables(), root_rank = 0)
 
             timing = time.perf_counter() - self.start_time
             train_loss = loss_mean.result()
             loss_mean.reset_states()
 
-            if hvd.rank() == 0:
-                self.checkpoint_manager.save()
+            #if hvd.rank() == 0:
+            #    self.checkpoint_manager.save()
+            self.checkpoint_manager.save()
             self.dataset.shuffle()
 
             # Evaluate the current model using the validation data.
-            print ("Evaluating the current model using " + str(self.dataset.num_valid_batches) + " validation batches.")
-            valid_loss = self.evaluate(valid_dataset, self.dataset.num_valid_batches)
+            #print ("Evaluating the current model using " + str(self.dataset.num_valid_batches) + " validation batches.")
+            #valid_loss = self.evaluate(valid_dataset, self.dataset.num_valid_batches)
 
             print ("Epoch " + str(self.checkpoint.epoch.numpy()) +\
                    " training loss = " + str(train_loss.numpy()) +\
-                   " validation loss = " + str(valid_loss.numpy()) +\
+                   #" validation loss = " + str(valid_loss.numpy()) +\
                    " training timing: " + str(timing) + " sec")
 
             # Write the loss values to the output files.
-            f = open("loss-train.txt", "a")
-            f.write(str(train_loss.numpy()) + "\n")
-            f.close()
-            f = open("loss-valid.txt", "a")
-            f.write(str(valid_loss.numpy()) + "\n")
-            f.close()
+            #f = open("loss-train.txt", "a")
+            #f.write(str(train_loss.numpy()) + "\n")
+            #f.close()
+            #f = open("loss-valid.txt", "a")
+            #f.write(str(valid_loss.numpy()) + "\n")
+            #f.close()
 
     def evaluate (self, dataset, num_valid_batches):
         self.dataset.valid_file_index = 0
@@ -122,15 +125,15 @@ class Trainer:
         return loss_mean.result()
 
 if __name__ == "__main__":
-    hvd.init()
+    #hvd.init()
 
     # Find a GPU for each process.
-    gpus = tf.config.experimental.list_physical_devices('GPU')
-    for gpu in gpus:
-        tf.config.experimental.set_memory_growth(gpu, True)
-    if gpus:
-        tf.config.experimental.set_visible_devices(gpus[hvd.local_rank()], 'GPU')
-        print ("Rank " + str(hvd.local_rank()) + " runs on GPU " + str(gpus[hvd.local_rank()]))
+    #gpus = tf.config.experimental.list_physical_devices('GPU')
+    #for gpu in gpus:
+    #    tf.config.experimental.set_memory_growth(gpu, True)
+    #if gpus:
+    #    tf.config.experimental.set_visible_devices(gpus[hvd.local_rank()], 'GPU')
+    #    print ("Rank " + str(hvd.local_rank()) + " runs on GPU " + str(gpus[hvd.local_rank()]))
 
     args = get_parser()
 

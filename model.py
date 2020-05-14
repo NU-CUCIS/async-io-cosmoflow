@@ -6,6 +6,7 @@ from tensorflow.keras.layers import Dense
 from tensorflow.keras.layers import AveragePooling3D
 from tensorflow.keras.layers import LeakyReLU
 from tensorflow.keras.layers import Flatten
+from tensorflow.keras.layers import Dropout
 from tensorflow.keras.layers import BatchNormalization
 
 class model ():
@@ -53,10 +54,14 @@ class model ():
         h = BatchNormalization()(h)
 
         h = Flatten(name = 'pool_to_full')(h)
+        h = Dropout(0.05, name='drop1')(h)
+
         h = Dense(2048, activation = 'linear', name = 'full1')(h)
+        h = Dropout(0.05, name='drop2')(h)
         #h = LeakyReLU(name = 'relu8')(h)
 
         h = Dense(256, activation = 'linear', name = 'full2')(h)
+        h = Dropout(0.05, name='drop3')(h)
         #h = LeakyReLU(name = 'relu9')(h)
 
         y = Dense(4, activation = 'linear', name = 'full3')(h)
