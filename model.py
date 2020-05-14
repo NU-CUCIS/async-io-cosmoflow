@@ -59,6 +59,6 @@ class model ():
         h = Dense(256, activation = 'linear', name = 'full2')(h)
         #h = LeakyReLU(name = 'relu9')(h)
 
-        h = Dense(4, activation = 'linear', name = 'full3')(h)
+        y = Dense(4, activation = 'linear', name = 'full3')(h)
         #y = LeakyReLU(name = 'relu10')(h)
         return Model(inputs = x_in, outputs = y)
