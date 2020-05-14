@@ -5,6 +5,7 @@ Sunwoo Lee
 Northwestern University
 '''
 import os
+import time
 import tensorflow as tf
 import yaml
 import numpy as np
@@ -65,11 +66,6 @@ class cosmoflow:
             for file_path in self.valid_files:
                 print (file_path)
 
-        #self.num_train_batches = 0
-        #for file_path in self.train_files:
-        #    f = h5py.File(file_path, 'r')
-        #    self.num_train_batches += f['unitPar'].shape[0]
-        #self.num_train_batches = int(self.num_train_batches / self.batch_size)
         self.num_train_batches = int(self.batches_per_file * len(self.train_files))
         print ("Number of training batches in the given " + str(len(self.train_files)) +
                " files: " + str(self.num_train_batches))
@@ -90,6 +86,7 @@ class cosmoflow:
         self.rng.shuffle(self.train_file_index)
 
     def read_train_samples (self, batch_id):
+        start = time.time()
         # Read a new file if there are no cached batches.
         if self.num_cached_train_batches == 0:
             f = h5py.File(self.train_files[self.train_file_index], 'r')
@@ -106,7 +103,6 @@ class cosmoflow:
                 self.batch_list = np.arange(self.batches_per_file)
                 for i in range(self.num_cached_train_batches, self.batches_per_file):
                     self.batch_list[i] = (i % self.num_cached_train_batches)
-                    print ("filling in the short batch_list[" + str(i) + "] with " + str(i % self.num_cached_train_batches))
                 self.num_cached_train_batches = self.batches_per_file
             else:
                 self.batch_list = np.arange(self.num_cached_train_batches)
@@ -117,6 +113,8 @@ class cosmoflow:
         index = self.batch_list[self.num_cached_train_batches]
         images = self.images[index : index + self.batch_size]
         labels = self.labels[index : index + self.batch_size]
+        end = time.time()
+        print ("i/o: " + str(end - start))
         return images, labels
 
     def read_valid_samples (self, batch_id):

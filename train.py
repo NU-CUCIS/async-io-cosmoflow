@@ -67,33 +67,27 @@ class Trainer:
             self.start_time = time.perf_counter()
 
             # Train the model.
-            io_time_mean = Mean()
-            comp_time_mean = Mean()
             for i in tqdm(range(self.dataset.num_train_batches)):
-                start = time.perf_counter()
                 # I/O
+                start = time.perf_counter()
                 data, label = train_dataset.next()
                 end = time.perf_counter()
+                print ("i/o + device transfer: " + str(end - start))
+
                 # Computation
+                start = time.perf_counter()
                 loss = self.train_step(data, label)
+                end = time.perf_counter()
+                print ("comp: " + str(end - start))
                 loss_mean(loss)
-                end2 = time.perf_counter()
-                print ("i/o: " + str(end - start) + " comp: " + str(end2 - end))
 
                 if epoch_id == 0 and i == 0:
                     hvd.broadcast_variables(self.checkpoint.model.variables, root_rank = 0)
                     hvd.broadcast_variables(self.checkpoint.optimizer.variables(), root_rank = 0)
 
-                if i > 0:
-                    io_time_mean(end - start)
-                    comp_time_mean(end2 - end)
-
             timing = time.perf_counter() - self.start_time
-            print ("------- batch reading: " + str(io_time_mean.result().numpy()) + " batch processing: " + str(comp_time_mean.result().numpy()))
             train_loss = loss_mean.result()
             loss_mean.reset_states()
-            io_time_mean.reset_states()
-            comp_time_mean.reset_states()
 
             if hvd.rank() == 0:
                 self.checkpoint_manager.save()
