@@ -62,6 +62,7 @@ class Trainer:
 
         for epoch_id in range(self.num_epochs):
             self.checkpoint.epoch.assign_add(1)
+            self.dataset.train_file_index = 0
             loss_mean = Mean()
             self.start_time = time.perf_counter()
 
@@ -77,6 +78,7 @@ class Trainer:
                 loss = self.train_step(data, label)
                 loss_mean(loss)
                 end2 = time.perf_counter()
+                print ("i/o: " + str(end - start) + " comp: " + str(end2 - end))
 
                 if epoch_id == 0 and i == 0:
                     hvd.broadcast_variables(self.checkpoint.model.variables, root_rank = 0)
@@ -101,7 +103,7 @@ class Trainer:
             print ("Evaluating the current model using " + str(self.dataset.num_valid_batches) + " validation batches.")
             valid_loss = self.evaluate(valid_dataset, self.dataset.num_valid_batches)
 
-            print ("Epoch " + str(self.checkpoint.epoch.numpy()) + "/" + str(self.num_epochs) +\
+            print ("Epoch " + str(self.checkpoint.epoch.numpy()) +\
                    " training loss = " + str(train_loss.numpy()) +\
                    " validation loss = " + str(valid_loss.numpy()) +\
                    " training timing: " + str(timing) + " sec")
@@ -115,6 +117,7 @@ class Trainer:
             f.close()
 
     def evaluate (self, dataset, num_valid_batches):
+        self.dataset.valid_file_index = 0
         loss_mean = Mean()
         for i in tqdm(range(num_valid_batches)):
             data, label = dataset.next()
@@ -138,7 +141,7 @@ if __name__ == "__main__":
 
     # Get the training dataset.
     dataset = cosmoflow("test.yaml", batch_size = args.batch_size)
-
+    
     # Get the model.
     cosmo_model = model()
 

@@ -13,6 +13,11 @@ import h5py
 class cosmoflow:
     def __init__ (self, yaml_file, batch_size = 4):
         self.batch_size = batch_size
+        self.rng = np.random.default_rng()
+        self.num_cached_train_batches = 0
+        self.num_cached_valid_batches = 0
+        self.train_file_index = 0
+        self.valid_file_index = 0
 
         # Parse the given yaml file and get the top dir and file names.
         with open (yaml_file, "r") as f:
@@ -20,6 +25,7 @@ class cosmoflow:
             for key, value in data.items():
                 if key == 'frameCnt':
                     self.samples_per_file = value
+                    self.batches_per_file = int(value / self.batch_size)
 
                 if key == 'numPar':
                     self.label_size = value
@@ -59,62 +65,77 @@ class cosmoflow:
             for file_path in self.valid_files:
                 print (file_path)
 
-        # Create an index array for data shuffling.
-        self.num_train_batches = int((len(self.train_files) * self.samples_per_file) / self.batch_size)
-        self.num_valid_batches = int((len(self.valid_files) * self.samples_per_file) / self.batch_size)
+        #self.num_train_batches = 0
+        #for file_path in self.train_files:
+        #    f = h5py.File(file_path, 'r')
+        #    self.num_train_batches += f['unitPar'].shape[0]
+        #self.num_train_batches = int(self.num_train_batches / self.batch_size)
+        self.num_train_batches = int(self.batches_per_file * len(self.train_files))
+        print ("Number of training batches in the given " + str(len(self.train_files)) +
+               " files: " + str(self.num_train_batches))
+
+        self.num_valid_batches = 0
+        for file_path in self.valid_files:
+            f = h5py.File(file_path, 'r')
+            self.num_valid_batches += f['unitPar'].shape[0]
+        self.num_valid_batches = int(self.num_valid_batches / self.batch_size)
+        print ("Number of validation batches in the given " + str(len(self.valid_files)) +
+               " files: " + str(self.num_valid_batches))
 
         self.shuffle()
 
     def shuffle (self):
-        rng = np.random.default_rng()
-
-        # First, shuffle the files.
+        # Shuffle the files.
         self.train_file_index = np.arange(len(self.train_files))
-        rng.shuffle(self.train_file_index)
-
-        # Second, shuffle the batches in each file.
-        # Thus, the granularity of shuffling is a local batch.
-        batch_index = []
-        for i in range(len(self.train_files)):
-            batch_list = np.arange(int(self.samples_per_file / self.batch_size))
-            rng.shuffle(batch_list)
-            batch_index.append(batch_list)
-        self.batch_index = np.array(batch_index)
+        self.rng.shuffle(self.train_file_index)
 
     def read_train_samples (self, batch_id):
-        # Pick the current file index.
-        my_file_index = self.train_file_index[int(batch_id.numpy() / int(self.samples_per_file / self.batch_size))]
-        # Pick the batch index within the selected file.
-        my_batch_index = int(batch_id.numpy() % int(self.samples_per_file / self.batch_size))
-        index = self.batch_index[my_file_index][my_batch_index] * self.batch_size
-        #print ("batch_id: " + str(batch_id.numpy()) + " my_file_index: " + str(my_file_index) + " my_batch_index: " + str(my_batch_index) + " index: " + str(index) + " file: " + self.train_files[my_file_index])
+        # Read a new file if there are no cached batches.
+        if self.num_cached_train_batches == 0:
+            f = h5py.File(self.train_files[self.train_file_index], 'r')
+            self.train_file_index += 1
+            if self.train_file_index == len(self.train_files):
+                self.train_file_index = 0
+            self.images = f['3Dmap'][:]
+            self.labels = f['unitPar'][:]
+            f.close()
+            self.num_cached_train_batches = int(self.images.shape[0] / self.batch_size)
 
-        '''
-        TODO: Open all the files before the training.
-        '''
-        # Read samples [index : index+batch_size]
-        f = h5py.File(self.train_files[my_file_index], 'r')
-        images = f['3Dmap'][index : index + self.batch_size]
-        labels = f['unitPar'][index : index + self.batch_size]
-        f.close()
+            # Some files have fewer samples than 128.
+            if self.num_cached_train_batches < self.batches_per_file:
+                self.batch_list = np.arange(self.batches_per_file)
+                for i in range(self.num_cached_train_batches, self.batches_per_file):
+                    self.batch_list[i] = (i % self.num_cached_train_batches)
+                    print ("filling in the short batch_list[" + str(i) + "] with " + str(i % self.num_cached_train_batches))
+                self.num_cached_train_batches = self.batches_per_file
+            else:
+                self.batch_list = np.arange(self.num_cached_train_batches)
+            self.rng.shuffle(self.batch_list)
+
+        # Get a mini-batch from the memory buffer.
+        self.num_cached_train_batches -= 1
+        index = self.batch_list[self.num_cached_train_batches]
+        images = self.images[index : index + self.batch_size]
+        labels = self.labels[index : index + self.batch_size]
         return images, labels
 
     def read_valid_samples (self, batch_id):
-        # Calculate the file index.
-        my_file_index = int(batch_id.numpy() / int(self.samples_per_file / self.batch_size))
-        # Calculate the batch index within the selected file.
-        my_batch_index = int(batch_id.numpy() % int(self.samples_per_file / self.batch_size))
-        index = my_batch_index * self.batch_size
+        # Read a new file if there are no cached batches.
+        if self.num_cached_valid_batches == 0:
+            if self.valid_file_index == len(self.valid_files):
+                print ("Invalid valid_file_index!")
+            f = h5py.File(self.valid_files[self.valid_file_index], 'r')
+            self.valid_file_index += 1
+            self.images = f['3Dmap'][:]
+            self.labels = f['unitPar'][:]
+            f.close()
+            self.num_cached_valid_batches = int(self.images.shape[0] / self.batch_size)
 
-        #print ("Reading samples [" + str(index) + ":" + str(index + self.batch_size) + "] from file " + str(self.valid_files[my_file_index]))
-        '''
-        TODO: Open all the files before the training.
-        '''
-        # Read samples [index : index+batch_size]
-        f = h5py.File(self.valid_files[my_file_index], 'r')
-        images = f['3Dmap'][index : index + self.batch_size]
-        labels = f['unitPar'][index : index + self.batch_size]
-        f.close()
+        # Get a mini-batch from the memory buffer.
+        index = self.num_cached_valid_batches - 1
+        images = self.images[index : index + self.batch_size]
+        labels = self.labels[index : index + self.batch_size]
+        self.num_cached_valid_batches -= 1
         return images, labels
 
     def train_dataset (self):

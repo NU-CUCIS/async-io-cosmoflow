@@ -11,6 +11,6 @@ sourceDir: {
 subDir: multiScale_tryG/
 fnameTmpl: PeterA_2019_05_4parE-rec*.h5
 splitIdx:
-  test: [25]
-  val:  [24]
-  train: [30,31,32,33]
+  test: [27]
+  val:  [27]
+  train: [37,31]
