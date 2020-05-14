@@ -32,7 +32,7 @@ class model ():
         h = BatchNormalization()(h)
         h = AveragePooling3D(pool_size = self.pool_size, name = 'pool3')(h)
 
-        h = Conv3D(128, self.kernel_size, padding = 'same', activation = 'linear', name = 'conv4')(h)
+        h = Conv3D(128, self.kernel_size, strides = (2, 2, 2), padding = 'same', activation = 'linear', name = 'conv4')(h)
         h = LeakyReLU(name = 'relu4')(h)
         h = BatchNormalization()(h)
         h = AveragePooling3D(pool_size = self.pool_size, name = 'pool4')(h)

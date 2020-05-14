@@ -31,6 +31,7 @@ class Trainer:
         self.num_epochs = num_epochs
         self.dataset = dataset
         self.model = model.build_model()
+        self.model.summary()
         self.lr = PiecewiseConstantDecay(boundaries = [100],
                                          values = [1e-4, 5e-5])
         self.loss = MeanAbsoluteError()
