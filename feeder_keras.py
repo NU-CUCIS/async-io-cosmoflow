@@ -12,7 +12,7 @@ import numpy as np
 import h5py
 from tensorflow.keras.utils import Sequence
 
-class cosmoflow (Sequence):
+class cosmoflow_keras (Sequence):
     def __init__ (self, yaml_file, batch_size = 8, mode = 'train'):
         self.batch_size = batch_size
         self.mode = mode

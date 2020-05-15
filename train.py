@@ -9,13 +9,12 @@ import time
 import argparse
 import horovod.tensorflow as hvd 
 from tqdm import tqdm
-from tensorflow.keras.losses import MeanAbsoluteError
 from tensorflow.keras.losses import MeanSquaredError
 from tensorflow.keras.metrics import Mean
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.optimizers.schedules import PiecewiseConstantDecay
-#from feeder_tf import cosmoflow
-from feeder_keras import cosmoflow
+from feeder_tf import cosmoflow_tf
+from feeder_keras import cosmoflow_keras
 from model import model
 
 def get_parser():
@@ -29,7 +28,7 @@ def get_parser():
     return args
 
 class Trainer:
-    def __init__ (self, model, dataset, num_epochs, checkpoint_dir = "./checkpoint"):
+    def __init__ (self, model, dataset = None, num_epochs = 1, checkpoint_dir = "./checkpoint"):
         self.num_epochs = num_epochs
         self.dataset = dataset
         self.model = model.build_model()
@@ -99,7 +98,7 @@ class Trainer:
 
             print ("Epoch " + str(self.checkpoint.epoch.numpy()) +\
                    " training loss = " + str(train_loss.numpy()) +\
-                   #" validation loss = " + str(valid_loss.numpy()) +\
+                   " validation loss = " + str(valid_loss.numpy()) +\
                    " training timing: " + str(timing) + " sec")
 
             # Write the loss values to the output files.
@@ -132,19 +131,19 @@ if __name__ == "__main__":
     args = get_parser()
 
     # Get the training dataset.
-    #dataset = cosmoflow("test.yaml", batch_size = args.batch_size)
-    #train_dataset = dataset.train_dataset()
-    #valid_dataset = dataset.valid_dataset()
-    train_dataset = cosmoflow("test.yaml", batch_size = args.batch_size, mode = 'train')
-    valid_dataset = cosmoflow("test.yaml", batch_size = args.batch_size, mode = 'valid')
+    #dataset = cosmoflow_tf("test.yaml", batch_size = args.batch_size)
+    train_dataset = cosmoflow_keras("test.yaml", batch_size = args.batch_size, mode = 'train')
+    valid_dataset = cosmoflow_keras("test.yaml", batch_size = args.batch_size, mode = 'valid')
     
     # Get the model.
     cosmo_model = model()
 
     # Perform the training.
+    #trainer = Trainer(cosmo_model, dataset, args.epochs)
     trainer = Trainer(cosmo_model, train_dataset, args.epochs)
 
     start = time.time()
+    #trainer.train()
     trainer.call_fit(train_dataset, valid_dataset)
     end = time.time()
-    print ("----------------- fit time: " + str(end - start))
+    print ("----------------- end-to-end time: " + str(end - start))
