@@ -38,11 +38,11 @@ class Trainer:
         self.loss = MeanSquaredError()
         self.checkpoint = tf.train.Checkpoint(epoch = tf.Variable(0),
                                               model = self.model,
-                                              #optimizer = Adam(self.lr))
                                               optimizer = Adam(lr = 1e-4))
         self.checkpoint_manager = tf.train.CheckpointManager(checkpoint = self.checkpoint,
                                                              directory = checkpoint_dir,
                                                              max_to_keep = 3)
+        self.checkpoint.model.compile(optimizer = self.checkpoint.optimizer, loss = 'mse')
         self.resume()
 
     def resume (self):
@@ -119,10 +119,7 @@ class Trainer:
             loss_mean(loss)
         return loss_mean.result()
 
-    def call_fit (self):
-        train_dataset = self.dataset.train_dataset()
-        valid_dataset = self.dataset.valid_dataset()
-        self.checkpoint.model.compile(optimizer = self.checkpoint.optimizer, loss = 'mse')
+    def call_fit (self, train_dataset, valid_dataset):
         self.checkpoint.model.fit(train_dataset,
                                   epochs = self.num_epochs,
                                   steps_per_epoch = self.dataset.num_train_batches)
@@ -133,14 +130,16 @@ if __name__ == "__main__":
 
     # Get the training dataset.
     dataset = cosmoflow("test.yaml", batch_size = args.batch_size)
+    train_dataset = dataset.train_dataset()
+    valid_dataset = dataset.valid_dataset()
     
     # Get the model.
     cosmo_model = model()
 
     # Perform the training.
     trainer = Trainer(cosmo_model, dataset, args.epochs)
+
     start = time.time()
-    trainer.call_fit()
+    trainer.call_fit(train_dataset, valid_dataset)
     end = time.time()
     print ("----------------- fit time: " + str(end - start))
-    #trainer.train()
