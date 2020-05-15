@@ -82,14 +82,15 @@ class cosmoflow:
 
     def shuffle (self):
         # Shuffle the files.
-        self.train_file_index = np.arange(len(self.train_files))
-        self.rng.shuffle(self.train_file_index)
+        self.shuffled_index = np.arange(len(self.train_files))
+        self.rng.shuffle(self.shuffled_index)
 
     def read_train_samples (self, batch_id):
         start = time.time()
         # Read a new file if there are no cached batches.
         if self.num_cached_train_batches == 0:
-            f = h5py.File(self.train_files[self.train_file_index], 'r')
+            file_index = self.shuffled_index[self.train_file_index]
+            f = h5py.File(self.train_files[file_index], 'r')
             self.train_file_index += 1
             if self.train_file_index == len(self.train_files):
                 self.train_file_index = 0
@@ -136,14 +137,26 @@ class cosmoflow:
         self.num_cached_valid_batches -= 1
         return images, labels
 
+    def tf_read_train_samples (self, batch_id):
+        images, labels = tf.py_function(self.read_train_samples, inp=[batch_id], Tout=[tf.float32, tf.float32])
+        images.set_shape([self.batch_size, 128,128,128,12])
+        labels.set_shape([self.batch_size, 4])
+        return images, labels
+
+    def tf_read_valid_samples (self, batch_id):
+        images, labels = tf.py_function(self.read_valid_samples, inp=[batch_id], Tout=[tf.float32, tf.float32])
+        images.set_shape([self.batch_size, 128,128,128,12])
+        labels.set_shape([self.batch_size, 4])
+        return images, labels
+
     def train_dataset (self):
         dataset = tf.data.Dataset.from_tensor_slices(np.arange(self.num_train_batches))
-        dataset = dataset.map(lambda x: tf.py_function(self.read_train_samples, inp=[x], Tout=[tf.float32, tf.float32]))
+        dataset = dataset.map(self.tf_read_train_samples)
         dataset = dataset.repeat()
-        return dataset.__iter__()
+        return dataset
 
     def valid_dataset (self):
         dataset = tf.data.Dataset.from_tensor_slices(np.arange(self.num_valid_batches))
-        dataset = dataset.map(lambda x: tf.py_function(self.read_valid_samples, inp=[x], Tout=[tf.float32, tf.float32]))
-        dataset = dataset.repeat()
-        return dataset.__iter__()
+        dataset = dataset.map(self.tf_read_valid_samples)
+        dataset = dataset.repeat(1)
+        return dataset

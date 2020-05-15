@@ -38,7 +38,8 @@ class Trainer:
         self.loss = MeanSquaredError()
         self.checkpoint = tf.train.Checkpoint(epoch = tf.Variable(0),
                                               model = self.model,
-                                              optimizer = Adam(self.lr))
+                                              #optimizer = Adam(self.lr))
+                                              optimizer = Adam(lr = 1e-4))
         self.checkpoint_manager = tf.train.CheckpointManager(checkpoint = self.checkpoint,
                                                              directory = checkpoint_dir,
                                                              max_to_keep = 3)
@@ -84,22 +85,16 @@ class Trainer:
                 print ("comp: " + str(end - start))
                 loss_mean(loss)
 
-                #if epoch_id == 0 and i == 0:
-                #    hvd.broadcast_variables(self.checkpoint.model.variables, root_rank = 0)
-                #    hvd.broadcast_variables(self.checkpoint.optimizer.variables(), root_rank = 0)
-
             timing = time.perf_counter() - self.start_time
             train_loss = loss_mean.result()
             loss_mean.reset_states()
 
-            #if hvd.rank() == 0:
-            #    self.checkpoint_manager.save()
             self.checkpoint_manager.save()
             self.dataset.shuffle()
 
             # Evaluate the current model using the validation data.
-            #print ("Evaluating the current model using " + str(self.dataset.num_valid_batches) + " validation batches.")
-            #valid_loss = self.evaluate(valid_dataset, self.dataset.num_valid_batches)
+            print ("Evaluating the current model using " + str(self.dataset.num_valid_batches) + " validation batches.")
+            valid_loss = self.evaluate(valid_dataset, self.dataset.num_valid_batches)
 
             print ("Epoch " + str(self.checkpoint.epoch.numpy()) +\
                    " training loss = " + str(train_loss.numpy()) +\
@@ -107,12 +102,21 @@ class Trainer:
                    " training timing: " + str(timing) + " sec")
 
             # Write the loss values to the output files.
-            #f = open("loss-train.txt", "a")
-            #f.write(str(train_loss.numpy()) + "\n")
-            #f.close()
-            #f = open("loss-valid.txt", "a")
-            #f.write(str(valid_loss.numpy()) + "\n")
-            #f.close()
+            f = open("loss-train.txt", "a")
+            f.write(str(train_loss.numpy()) + "\n")
+            f.close()
+            f = open("loss-valid.txt", "a")
+            f.write(str(valid_loss.numpy()) + "\n")
+            f.close()
+
+    def call_fit (self):
+        train_dataset = self.dataset.train_dataset()
+        valid_dataset = self.dataset.valid_dataset()
+        self.checkpoint.model.compile(optimizer = self.checkpoint.optimizer, loss = 'mse')
+        self.checkpoint.model.fit(train_dataset,
+                                  epochs = self.num_epochs,
+                                  steps_per_epoch = self.dataset.num_train_batches,
+                                  validation_data = valid_dataset)
 
     def evaluate (self, dataset, num_valid_batches):
         self.dataset.valid_file_index = 0
@@ -125,16 +129,6 @@ class Trainer:
         return loss_mean.result()
 
 if __name__ == "__main__":
-    #hvd.init()
-
-    # Find a GPU for each process.
-    #gpus = tf.config.experimental.list_physical_devices('GPU')
-    #for gpu in gpus:
-    #    tf.config.experimental.set_memory_growth(gpu, True)
-    #if gpus:
-    #    tf.config.experimental.set_visible_devices(gpus[hvd.local_rank()], 'GPU')
-    #    print ("Rank " + str(hvd.local_rank()) + " runs on GPU " + str(gpus[hvd.local_rank()]))
-
     args = get_parser()
 
     # Get the training dataset.
@@ -145,4 +139,5 @@ if __name__ == "__main__":
 
     # Perform the training.
     trainer = Trainer(cosmo_model, dataset, args.epochs)
-    trainer.train()
+    trainer.call_fit()
+    #trainer.train()
