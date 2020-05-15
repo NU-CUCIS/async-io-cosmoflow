@@ -14,8 +14,8 @@
 
 ulimit -c unlimited
 
-cd /global/homes/s/slz839/cosmo/cosmoflow
-srun -n 1 python3 ../cosmoflow/train_CosmoFlow.py --steps=16 --epochs=1 --batch_size=8 --noHorovod
+#cd /global/homes/s/slz839/cosmo/cosmoflow
+#srun -n 1 python3 ../cosmoflow/train_CosmoFlow.py --steps=16 --epochs=1 --batch_size=8 --noHorovod
 
 cd /global/homes/s/slz839/cosmo/tf2-cosmoflow
 srun -n 1 python3 train.py --epochs=1 --batch_size=8

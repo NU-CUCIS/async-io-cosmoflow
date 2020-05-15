@@ -15,6 +15,7 @@ from tensorflow.keras.metrics import Mean
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.optimizers.schedules import PiecewiseConstantDecay
 from feeder import cosmoflow
+from feeder_keras import keras_cosmoflow
 from model import model
 
 def get_parser():
@@ -119,27 +120,31 @@ class Trainer:
             loss_mean(loss)
         return loss_mean.result()
 
-    def call_fit (self, train_dataset, valid_dataset):
+    #def call_fit (self, train_dataset, valid_dataset):
+    def call_fit (self, train_dataset):
         self.checkpoint.model.fit(train_dataset,
+                                  shuffle = False,
                                   epochs = self.num_epochs,
-                                  steps_per_epoch = self.dataset.num_train_batches)
+                                  steps_per_epoch = train_dataset.num_train_batches)
                                   #validation_data = valid_dataset)
 
 if __name__ == "__main__":
     args = get_parser()
 
     # Get the training dataset.
-    dataset = cosmoflow("test.yaml", batch_size = args.batch_size)
-    train_dataset = dataset.train_dataset()
-    valid_dataset = dataset.valid_dataset()
+    #dataset = cosmoflow("test.yaml", batch_size = args.batch_size)
+    #train_dataset = dataset.train_dataset()
+    #valid_dataset = dataset.valid_dataset()
+    train_dataset = keras_cosmoflow("test.yaml", batch_size = args.batch_size, mode = 'train')
     
     # Get the model.
     cosmo_model = model()
 
     # Perform the training.
-    trainer = Trainer(cosmo_model, dataset, args.epochs)
+    trainer = Trainer(cosmo_model, train_dataset, args.epochs)
 
     start = time.time()
-    trainer.call_fit(train_dataset, valid_dataset)
+    #trainer.call_fit(train_dataset, valid_dataset)
+    trainer.call_fit(train_dataset)
     end = time.time()
     print ("----------------- fit time: " + str(end - start))
