@@ -109,15 +109,6 @@ class Trainer:
             f.write(str(valid_loss.numpy()) + "\n")
             f.close()
 
-    def call_fit (self):
-        train_dataset = self.dataset.train_dataset()
-        valid_dataset = self.dataset.valid_dataset()
-        self.checkpoint.model.compile(optimizer = self.checkpoint.optimizer, loss = 'mse')
-        self.checkpoint.model.fit(train_dataset,
-                                  epochs = self.num_epochs,
-                                  steps_per_epoch = self.dataset.num_train_batches,
-                                  validation_data = valid_dataset)
-
     def evaluate (self, dataset, num_valid_batches):
         self.dataset.valid_file_index = 0
         loss_mean = Mean()
@@ -127,6 +118,15 @@ class Trainer:
             loss = self.loss(label, prediction)
             loss_mean(loss)
         return loss_mean.result()
+
+    def call_fit (self):
+        train_dataset = self.dataset.train_dataset()
+        valid_dataset = self.dataset.valid_dataset()
+        self.checkpoint.model.compile(optimizer = self.checkpoint.optimizer, loss = 'mse')
+        self.checkpoint.model.fit(train_dataset,
+                                  epochs = self.num_epochs,
+                                  steps_per_epoch = self.dataset.num_train_batches)
+                                  #validation_data = valid_dataset)
 
 if __name__ == "__main__":
     args = get_parser()
@@ -139,5 +139,8 @@ if __name__ == "__main__":
 
     # Perform the training.
     trainer = Trainer(cosmo_model, dataset, args.epochs)
+    start = time.time()
     trainer.call_fit()
+    end = time.time()
+    print ("----------------- fit time: " + str(end - start))
     #trainer.train()
