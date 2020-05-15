@@ -86,9 +86,9 @@ class cosmoflow:
         self.rng.shuffle(self.shuffled_index)
 
     def read_train_samples (self, batch_id):
-        start = time.time()
         # Read a new file if there are no cached batches.
         if self.num_cached_train_batches == 0:
+            start = time.time()
             file_index = self.shuffled_index[self.train_file_index]
             f = h5py.File(self.train_files[file_index], 'r')
             self.train_file_index += 1
@@ -108,14 +108,14 @@ class cosmoflow:
             else:
                 self.batch_list = np.arange(self.num_cached_train_batches)
             self.rng.shuffle(self.batch_list)
+            end = time.time()
+            print ("i/o: " + str(end - start))
 
         # Get a mini-batch from the memory buffer.
         self.num_cached_train_batches -= 1
         index = self.batch_list[self.num_cached_train_batches]
         images = self.images[index : index + self.batch_size]
         labels = self.labels[index : index + self.batch_size]
-        end = time.time()
-        print ("i/o: " + str(end - start))
         return images, labels
 
     def read_valid_samples (self, batch_id):
