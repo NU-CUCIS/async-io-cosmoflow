@@ -19,3 +19,9 @@ ulimit -c unlimited
 
 cd /global/homes/s/slz839/cosmo/tf2-cosmoflow
 srun -n 1 python3 train.py --epochs=1 --batch_size=8
+
+#module unload gcc/8.3.0
+#module unload cuda/10.1.243
+#module load pytorch/v1.4.0-gpu
+#cd /global/homes/s/slz839/cosmo/Cosmoflow-notes/pytorch_implementation
+#srun -n 1 python3 train_cosmoflow.py cosmo6_dataSplit_peter_tryG_c1.yaml

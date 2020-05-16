@@ -7,6 +7,7 @@ Northwestern University
 import tensorflow as tf
 import time
 import argparse
+import threading
 import horovod.tensorflow as hvd 
 from tqdm import tqdm
 from tensorflow.keras.losses import MeanSquaredError
@@ -15,6 +16,7 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.optimizers.schedules import PiecewiseConstantDecay
 from feeder_tf import cosmoflow_tf
 from feeder_keras import cosmoflow_keras
+from reader import Reader
 from model import model
 
 def get_parser():
@@ -123,9 +125,9 @@ class Trainer:
         self.checkpoint.model.fit(train_dataset,
                                   shuffle = False,
                                   epochs = self.num_epochs,
-                                  steps_per_epoch = train_dataset.num_batches,
-                                  validation_data = valid_dataset,
-                                  validation_steps = valid_dataset.num_batches)
+                                  steps_per_epoch = train_dataset.num_batches)
+                                  #validation_data = valid_dataset,
+                                  #validation_steps = valid_dataset.num_batches)
 
 if __name__ == "__main__":
     args = get_parser()
@@ -135,6 +137,13 @@ if __name__ == "__main__":
     train_dataset = cosmoflow_keras("test.yaml", batch_size = args.batch_size, mode = 'train')
     valid_dataset = cosmoflow_keras("test.yaml", batch_size = args.batch_size, mode = 'valid')
     
+    # Asynchronous reader
+    reader = Reader(train_dataset)
+    x = threading.Thread(target = reader.activate)
+    x.start()
+
+    print ("Main thread....")
+
     # Get the model.
     cosmo_model = model()
 
@@ -147,3 +156,7 @@ if __name__ == "__main__":
     trainer.call_fit(train_dataset, valid_dataset)
     end = time.time()
     print ("----------------- end-to-end time: " + str(end - start))
+
+    reader.deactivate()
+    print ("All killed...")
+    x.join()

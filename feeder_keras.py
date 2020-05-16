@@ -10,6 +10,7 @@ import tensorflow as tf
 import yaml
 import numpy as np
 import h5py
+import threading
 from tensorflow.keras.utils import Sequence
 
 class cosmoflow_keras (Sequence):
@@ -19,6 +20,9 @@ class cosmoflow_keras (Sequence):
         self.rng = np.random.default_rng()
         self.num_cached_batches = 0
         self.file_index = 0
+        self.lock = threading.Lock()
+        self.cv = threading.Condition(lock = self.lock)
+        self.empty = 1
 
         # Parse the given yaml file and get the top dir and file names.
         with open (yaml_file, "r") as f:
@@ -121,6 +125,11 @@ class cosmoflow_keras (Sequence):
             end = time.time()
             print ("[" + str(input_index) + "] cached: [" + str(self.num_cached_batches) +\
                    "] i/o: " + str(end - start) + " reading " + self.files[file_index])
+            self.lock.acquire()
+            self.empty = 0
+            self.cv.notify()
+            self.lock.release()
+        print ("[" + str(input_index) + "] cached: " + str(self.num_cached_batches))
 
         # Get a mini-batch from the memory buffer.
         self.num_cached_batches -= 1
