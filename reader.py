@@ -26,22 +26,14 @@ class Reader:
     def activate (self):
         print ("Thread starting for " + str(self.dataset.mode) + " dataset.")
         while 1:
-            time.sleep(1)
             self.dataset.lock.acquire()
-            #num_cached_files = self.dataset.tail - self.dataset.head
-            #if num_cached_files < 0: num_cached_files += self.dataset.num_files_to_keep
-
             # Read a file into buffer[tail].
-            #while (self.finish == 0) and (num_cached_files == self.dataset.num_files_to_keep):
-
             while (self.finish == 0) and (self.dataset.num_files_in_cache > 0):
                 self.dataset.cv.wait()
             self.dataset.lock.release()
 
             # First, check if there has been a termination request.
             if self.finish == 1:
-                print ("Okay, I will be killed in 2 seconds.")
-                time.sleep(2)
                 break
 
             # Check which file should be read into the memory space.
@@ -50,10 +42,12 @@ class Reader:
             else:
                 file_index = self.file_index
 
+            start = time.time()
             f = h5py.File(self.dataset.files[file_index], 'r')
             self.dataset.cached_data[self.dataset.tail] = f['3Dmap'][:]
             self.dataset.cached_label[self.dataset.tail] = f['unitPar'][:]
             f.close()
+            end = time.time()
 
             # Update the tail offset.
             self.dataset.lock.acquire()
@@ -64,7 +58,11 @@ class Reader:
             self.dataset.cv.notify()
             self.dataset.lock.release()
 
-            print ("Async reader reads files[" + str(self.file_index) + "] " + self.dataset.files[file_index] + " now, head: " + str(self.dataset.head) + ", tail: " + str(self.dataset.tail))
+            print ("Async reader reads files[" + str(self.file_index) + "] " +\
+                   self.dataset.files[file_index] +\
+                   " now, head: " + str(self.dataset.head) +\
+                   ", tail: " + str(self.dataset.tail) + \
+                   " timing: " + str(end - start))
 
             # Remember which file was read just now.
             self.file_index += 1

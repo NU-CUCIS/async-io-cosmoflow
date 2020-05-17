@@ -101,9 +101,9 @@ class cosmoflow_keras (Sequence):
     def __getitem__(self, input_index = 0):
         # Check if there is a file in the memory buffer.
         self.lock.acquire()
-        #while self.head == self.tail:
         while self.num_files_in_cache == 0:
             self.cv.wait()
+        self.cv.notify()
         self.lock.release()
 
         # If num_cached_batches is 0 and went through the above wait(),
@@ -129,8 +129,9 @@ class cosmoflow_keras (Sequence):
         # Read a batch from the cached file.
         self.num_cached_batches -= 1
         index = self.batch_list[self.num_cached_batches]
-        images = self.images[index : index + self.batch_size]
-        labels = self.labels[index : index + self.batch_size]
+        
+        images = self.cached_data[self.head][index : index + self.batch_size]
+        labels = self.cached_label[self.head][index : index + self.batch_size]
 
         # Check if the current file has been all consumed.
         # If yes, increase the head offset.
