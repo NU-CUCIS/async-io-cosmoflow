@@ -153,10 +153,10 @@ if __name__ == "__main__":
 
     start = time.time()
     #trainer.train()
-    trainer.call_fit(train_dataset, valid_dataset)
+    #trainer.call_fit(train_dataset, valid_dataset)
     end = time.time()
     print ("----------------- end-to-end time: " + str(end - start))
 
     reader.deactivate()
-    print ("All killed...")
     x.join()
+    print ("All done!")

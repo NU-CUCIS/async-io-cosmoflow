@@ -24,6 +24,12 @@ class cosmoflow_keras (Sequence):
         self.cv = threading.Condition(lock = self.lock)
         self.empty = 1
 
+        self.num_files_to_keep = 1
+        self.head = 0
+        self.tail = 0
+        self.cached_data = [None] * self.num_files_to_keep
+        self.cached_label = [None] * self.num_files_to_keep
+
         # Parse the given yaml file and get the top dir and file names.
         with open (yaml_file, "r") as f:
             data = yaml.load(f, Loader = yaml.FullLoader)
@@ -93,47 +99,47 @@ class cosmoflow_keras (Sequence):
 
     def __getitem__(self, input_index = 0):
         # Read a new file if there are no cached batches.
-        if self.num_cached_batches == 0:
-            start = time.time()
-            if self.mode == 'train':
-                file_index = self.shuffled_index[self.file_index]
-            else:
-                file_index = self.file_index
+        #if self.num_cached_batches == 0:
+        #    start = time.time()
+        #    if self.mode == 'train':
+        #        file_index = self.shuffled_index[self.file_index]
+        #    else:
+        #        file_index = self.file_index
 
-            f = h5py.File(self.files[file_index], 'r')
-            self.images = f['3Dmap'][:]
-            self.labels = f['unitPar'][:]
-            f.close()
+        #    f = h5py.File(self.files[file_index], 'r')
+        #    self.images = f['3Dmap'][:]
+        #    self.labels = f['unitPar'][:]
+        #    f.close()
 
-            self.file_index += 1
-            if self.file_index == len(self.files):
-                self.file_index = 0
-            self.num_cached_batches = int(self.images.shape[0] / self.batch_size)
+        #    self.file_index += 1
+        #    if self.file_index == len(self.files):
+        #        self.file_index = 0
+        #    self.num_cached_batches = int(self.images.shape[0] / self.batch_size)
 
-            # Some files have fewer samples than 128.
-            if self.mode == 'train':
-                if self.num_cached_batches < self.batches_per_file:
-                    self.batch_list = np.arange(self.batches_per_file)
-                    for i in range(self.num_cached_batches, self.batches_per_file):
-                        self.batch_list[i] = (i % self.num_cached_batches)
-                    self.num_cached_batches = self.batches_per_file
-                else:
-                    self.batch_list = np.arange(self.num_cached_batches)
-                self.rng.shuffle(self.batch_list)
-            else:
-                self.batch_list = np.arange(self.num_cached_batches)
-            end = time.time()
-            print ("[" + str(input_index) + "] cached: [" + str(self.num_cached_batches) +\
-                   "] i/o: " + str(end - start) + " reading " + self.files[file_index])
-            self.lock.acquire()
-            self.empty = 0
-            self.cv.notify()
-            self.lock.release()
-        print ("[" + str(input_index) + "] cached: " + str(self.num_cached_batches))
+        #    # Some files have fewer samples than 128.
+        #    if self.mode == 'train':
+        #        if self.num_cached_batches < self.batches_per_file:
+        #            self.batch_list = np.arange(self.batches_per_file)
+        #            for i in range(self.num_cached_batches, self.batches_per_file):
+        #                self.batch_list[i] = (i % self.num_cached_batches)
+        #            self.num_cached_batches = self.batches_per_file
+        #        else:
+        #            self.batch_list = np.arange(self.num_cached_batches)
+        #        self.rng.shuffle(self.batch_list)
+        #    else:
+        #        self.batch_list = np.arange(self.num_cached_batches)
+        #    end = time.time()
+        #    print ("[" + str(input_index) + "] cached: [" + str(self.num_cached_batches) +\
+        #           "] i/o: " + str(end - start) + " reading " + self.files[file_index])
+        #    self.lock.acquire()
+        #    self.empty = 0
+        #    self.cv.notify()
+        #    self.lock.release()
+        #print ("[" + str(input_index) + "] cached: " + str(self.num_cached_batches))
 
         # Get a mini-batch from the memory buffer.
-        self.num_cached_batches -= 1
-        index = self.batch_list[self.num_cached_batches]
-        images = self.images[index : index + self.batch_size]
-        labels = self.labels[index : index + self.batch_size]
+        #self.num_cached_batches -= 1
+        #index = self.batch_list[self.num_cached_batches]
+        #images = self.images[index : index + self.batch_size]
+        #labels = self.labels[index : index + self.batch_size]
         return (images, labels)
