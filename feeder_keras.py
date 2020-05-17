@@ -25,6 +25,7 @@ class cosmoflow_keras (Sequence):
         self.empty = 1
 
         self.num_files_to_keep = 1
+        self.num_files_in_cache = 0
         self.head = 0
         self.tail = 0
         self.cached_data = [None] * self.num_files_to_keep
@@ -98,48 +99,49 @@ class cosmoflow_keras (Sequence):
         return self.num_batches
 
     def __getitem__(self, input_index = 0):
-        # Read a new file if there are no cached batches.
-        #if self.num_cached_batches == 0:
-        #    start = time.time()
-        #    if self.mode == 'train':
-        #        file_index = self.shuffled_index[self.file_index]
-        #    else:
-        #        file_index = self.file_index
+        # Check if there is a file in the memory buffer.
+        self.lock.acquire()
+        #while self.head == self.tail:
+        while self.num_files_in_cache == 0:
+            self.cv.wait()
+        self.lock.release()
 
-        #    f = h5py.File(self.files[file_index], 'r')
-        #    self.images = f['3Dmap'][:]
-        #    self.labels = f['unitPar'][:]
-        #    f.close()
+        # If num_cached_batches is 0 and went through the above wait(),
+        # it means that a new file has been loaded by the reader.
+        # So, update the num_cached_batches using the head offset.
+        if self.num_cached_batches == 0:
+            self.num_cached_batches = int(self.cached_data[self.head].shape[0] / self.batch_size)
 
-        #    self.file_index += 1
-        #    if self.file_index == len(self.files):
-        #        self.file_index = 0
-        #    self.num_cached_batches = int(self.images.shape[0] / self.batch_size)
+            # Create the random indices for the loaded batches.
+            # Note that some files have fewer samples than 128.
+            if self.mode == 'train':
+                if self.num_cached_batches < self.batches_per_file:
+                    self.batch_list = np.arange(self.batches_per_file)
+                    for i in range(self.num_cached_batches, self.batches_per_file):
+                        self.batch_list[i] = (i % self.num_cached_batches)
+                    self.num_cached_batches = self.batches_per_file
+                else:
+                    self.batch_list = np.arange(self.num_cached_batches)
+                self.rng.shuffle(self.batch_list)
+            else:
+                self.batch_list = np.arange(self.num_cached_batches)
 
-        #    # Some files have fewer samples than 128.
-        #    if self.mode == 'train':
-        #        if self.num_cached_batches < self.batches_per_file:
-        #            self.batch_list = np.arange(self.batches_per_file)
-        #            for i in range(self.num_cached_batches, self.batches_per_file):
-        #                self.batch_list[i] = (i % self.num_cached_batches)
-        #            self.num_cached_batches = self.batches_per_file
-        #        else:
-        #            self.batch_list = np.arange(self.num_cached_batches)
-        #        self.rng.shuffle(self.batch_list)
-        #    else:
-        #        self.batch_list = np.arange(self.num_cached_batches)
-        #    end = time.time()
-        #    print ("[" + str(input_index) + "] cached: [" + str(self.num_cached_batches) +\
-        #           "] i/o: " + str(end - start) + " reading " + self.files[file_index])
-        #    self.lock.acquire()
-        #    self.empty = 0
-        #    self.cv.notify()
-        #    self.lock.release()
-        #print ("[" + str(input_index) + "] cached: " + str(self.num_cached_batches))
+        # Read a batch from the cached file.
+        self.num_cached_batches -= 1
+        index = self.batch_list[self.num_cached_batches]
+        images = self.images[index : index + self.batch_size]
+        labels = self.labels[index : index + self.batch_size]
 
-        # Get a mini-batch from the memory buffer.
-        #self.num_cached_batches -= 1
-        #index = self.batch_list[self.num_cached_batches]
-        #images = self.images[index : index + self.batch_size]
-        #labels = self.labels[index : index + self.batch_size]
+        # Check if the current file has been all consumed.
+        # If yes, increase the head offset.
+        # Whenever a file is consumed, notify the i/o thread.
+        self.lock.acquire()
+        if self.num_cached_batches == 0:
+            self.num_files_in_cache -= 1
+            self.head += 1
+            if self.head == self.num_files_to_keep:
+                self.head = 0
+        self.cv.notify()
+        self.lock.release()
+
         return (images, labels)
