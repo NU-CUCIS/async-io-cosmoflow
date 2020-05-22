@@ -8,7 +8,7 @@ import tensorflow as tf
 import time
 import argparse
 import threading
-import horovod.tensorflow as hvd 
+import horovod.tensorflow.keras as hvd 
 from tqdm import tqdm
 from tensorflow.keras.losses import MeanSquaredError
 from tensorflow.keras.metrics import Mean
@@ -38,13 +38,15 @@ class Trainer:
         self.lr = PiecewiseConstantDecay(boundaries = [100],
                                          values = [1e-4, 5e-5])
         self.loss = MeanSquaredError()
+        self.opt = Adam(lr = 1e-4)
+        self.opt = hvd.DistributedOptimizer(self.opt)
         self.checkpoint = tf.train.Checkpoint(epoch = tf.Variable(0),
                                               model = self.model,
-                                              optimizer = Adam(lr = 1e-4))
+                                              optimizer = self.opt)
         self.checkpoint_manager = tf.train.CheckpointManager(checkpoint = self.checkpoint,
                                                              directory = checkpoint_dir,
                                                              max_to_keep = 3)
-        self.checkpoint.model.compile(optimizer = self.checkpoint.optimizer, loss = 'mse')
+        self.checkpoint.model.compile(optimizer = self.checkpoint.optimizer, loss = 'mse', experimental_run_tf_function = False)
         self.resume()
 
     def resume (self):
@@ -91,7 +93,8 @@ class Trainer:
             train_loss = loss_mean.result()
             loss_mean.reset_states()
 
-            self.checkpoint_manager.save()
+            if hvd.rank() == 0:
+                self.checkpoint_manager.save()
             self.dataset.shuffle()
 
             # Evaluate the current model using the validation data.
@@ -122,20 +125,35 @@ class Trainer:
         return loss_mean.result()
 
     def call_fit (self, train_dataset, valid_dataset):
+        callbacks = [
+            hvd.callbacks.BroadcastGlobalVariablesCallback(0)
+        ]
         self.checkpoint.model.fit(train_dataset,
                                   shuffle = False,
+                                  callbacks = callbacks,
                                   epochs = self.num_epochs,
+                                  workers=1, use_multiprocessing=False,  
                                   steps_per_epoch = train_dataset.num_batches)
                                   #validation_data = valid_dataset,
                                   #validation_steps = valid_dataset.num_batches)
 
+def test_fc():
+    print ("It's test_fc")
+
 if __name__ == "__main__":
     args = get_parser()
+    hvd.init()
+
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    for gpu in gpus:
+        tf.config.experimental.set_memory_growth(gpu, True)
+    if gpus:
+        tf.config.experimental.set_visible_devices(gpus[hvd.local_rank()], 'GPU')
 
     # Get the training dataset.
     #dataset = cosmoflow_tf("test.yaml", batch_size = args.batch_size)
-    train_dataset = cosmoflow_keras("test.yaml", batch_size = args.batch_size, mode = 'train')
-    valid_dataset = cosmoflow_keras("test.yaml", batch_size = args.batch_size, mode = 'valid')
+    train_dataset = cosmoflow_keras("test.yaml", batch_size = args.batch_size, mode = 'train', rank = hvd.rank())
+    valid_dataset = cosmoflow_keras("test.yaml", batch_size = args.batch_size, mode = 'valid', rank = hvd.rank())
     
     # Asynchronous reader
     reader = Reader(train_dataset)

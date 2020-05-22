@@ -14,8 +14,9 @@ import threading
 from tensorflow.keras.utils import Sequence
 
 class cosmoflow_keras (Sequence):
-    def __init__ (self, yaml_file, batch_size = 8, mode = 'train'):
+    def __init__ (self, yaml_file, batch_size = 8, mode = 'train', rank = 0):
         self.batch_size = batch_size
+        self.rank = rank
         self.mode = mode
         self.rng = np.random.default_rng()
         self.num_cached_batches = 0
@@ -126,18 +127,20 @@ class cosmoflow_keras (Sequence):
             else:
                 self.batch_list = np.arange(self.num_cached_batches)
 
-        # Read a batch from the cached file.
+        ## Read a batch from the cached file.
         self.num_cached_batches -= 1
         index = self.batch_list[self.num_cached_batches]
-        
+        #print ("Consuming " + str(index) + " so, now there are " + str(self.num_cached_batches))
+
         images = self.cached_data[self.head][index : index + self.batch_size]
         labels = self.cached_label[self.head][index : index + self.batch_size]
 
-        # Check if the current file has been all consumed.
-        # If yes, increase the head offset.
-        # Whenever a file is consumed, notify the i/o thread.
+        ## Check if the current file has been all consumed.
+        ## If yes, increase the head offset.
+        ## Whenever a file is consumed, notify the i/o thread.
         self.lock.acquire()
         if self.num_cached_batches == 0:
+            print ("R" + str(self.rank) + " Consumed all the cached batches!")
             self.num_files_in_cache -= 1
             self.head += 1
             if self.head == self.num_files_to_keep:
