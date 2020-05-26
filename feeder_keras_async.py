@@ -12,9 +12,13 @@ import numpy as np
 import h5py
 import threading
 from tensorflow.keras.utils import Sequence
+from mpi4py import MPI
 
 class cosmoflow_keras (Sequence):
     def __init__ (self, yaml_file, batch_size = 8, mode = 'train', rank = 0):
+        self.comm = MPI.COMM_WORLD
+        self.size = self.comm.Get_size()
+
         self.batch_size = batch_size
         self.rank = rank
         self.mode = mode
@@ -78,8 +82,13 @@ class cosmoflow_keras (Sequence):
                 print (file_path)
 
         if mode == 'train':
-            self.num_batches = int(self.batches_per_file * len(self.files))
-            print ("Number of training batches in the given " + str(len(self.files)) +
+            self.num_local_files = int(len(self.files) / self.size)
+            self.offset = self.num_local_files * self.rank
+            if (len(self.files) % self.size != 0):
+                print ("Number of training files is not divisible by the number of processes!")
+                exit()
+            self.num_batches = int(self.batches_per_file * self.num_local_files)
+            print ("Number of training batches in the given " + str(self.num_local_files) +
                    " files: " + str(self.num_batches))
             self.shuffle()
         else:
@@ -94,7 +103,10 @@ class cosmoflow_keras (Sequence):
     def shuffle (self):
         # Shuffle the files.
         self.shuffled_index = np.arange(len(self.files))
-        self.rng.shuffle(self.shuffled_index)
+        if self.rank == 0:
+            self.rng.shuffle(self.shuffled_index)
+        self.comm.Bcast(self.shuffled_index, root = 0) 
+        print ("R0 shuffled the files... the first file id is " + str(self.shuffled_index[0]))
 
     def __len__(self):
         return self.num_batches
@@ -130,7 +142,6 @@ class cosmoflow_keras (Sequence):
         ## Read a batch from the cached file.
         self.num_cached_batches -= 1
         index = self.batch_list[self.num_cached_batches]
-        #print ("Consuming " + str(index) + " so, now there are " + str(self.num_cached_batches))
 
         images = self.cached_data[self.head][index : index + self.batch_size]
         labels = self.cached_label[self.head][index : index + self.batch_size]
@@ -138,14 +149,13 @@ class cosmoflow_keras (Sequence):
         ## Check if the current file has been all consumed.
         ## If yes, increase the head offset.
         ## Whenever a file is consumed, notify the i/o thread.
-        if self.num_cached_batches == 0:
-            self.lock.acquire()
-            print ("R" + str(self.rank) + " Consumed all the cached batches!")
-            self.num_files_in_cache -= 1
-            self.head += 1
-            if self.head == self.num_files_to_keep:
-                self.head = 0
-            self.cv.notify()
-            self.lock.release()
+        #if self.num_cached_batches == 0:
+        self.lock.acquire()
+        self.num_files_in_cache -= 1
+        self.head += 1
+        if self.head == self.num_files_to_keep:
+            self.head = 0
+        self.cv.notify()
+        self.lock.release()
 
         return (images, labels)
