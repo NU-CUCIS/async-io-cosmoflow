@@ -8,14 +8,17 @@ import tensorflow as tf
 import time
 import argparse
 import threading
-import horovod.tensorflow.keras as hvd 
+import horovod.tensorflow.keras as hvd
+#import horovod.tensorflow as hvd
 from tqdm import tqdm
 from tensorflow.keras.losses import MeanSquaredError
 from tensorflow.keras.metrics import Mean
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.optimizers.schedules import PiecewiseConstantDecay
 from feeder_tf import cosmoflow_tf
-from feeder_keras import cosmoflow_keras
+from feeder_keras_async import cosmoflow_keras
+#from feeder_keras_sync import cosmoflow_keras
+#from feeder_tf import cosmoflow_tf
 from reader import Reader
 from model import model
 
@@ -46,6 +49,7 @@ class Trainer:
         self.checkpoint_manager = tf.train.CheckpointManager(checkpoint = self.checkpoint,
                                                              directory = checkpoint_dir,
                                                              max_to_keep = 3)
+        #self.checkpoint.model.compile(optimizer = self.checkpoint.optimizer, loss = 'mse', experimental_run_tf_function = False)
         self.checkpoint.model.compile(optimizer = self.checkpoint.optimizer, loss = 'mse', experimental_run_tf_function = False)
         self.resume()
 
@@ -59,7 +63,7 @@ class Trainer:
         with tf.GradientTape() as tape:
             prediction = self.checkpoint.model(data, training = True)
             loss = self.loss(label, prediction)
-        #tape = hvd.DistributedGradientTape(tape)
+        tape = hvd.DistributedGradientTape(tape)
         gradients = tape.gradient(loss, self.checkpoint.model.trainable_variables)
         self.checkpoint.optimizer.apply_gradients(zip(gradients, self.checkpoint.model.trainable_variables))
         return loss
@@ -89,30 +93,34 @@ class Trainer:
                 print ("comp: " + str(end - start))
                 loss_mean(loss)
 
+                if epoch_id == 0 and i == 0:
+                    hvd.broadcast_variables(self.checkpoint.model.variables, root_rank=0)
+                    hvd.broadcast_variables(self.opt.variables(), root_rank=0)
+
             timing = time.perf_counter() - self.start_time
             train_loss = loss_mean.result()
             loss_mean.reset_states()
 
-            if hvd.rank() == 0:
-                self.checkpoint_manager.save()
+            #if hvd.rank() == 0:
+            #    self.checkpoint_manager.save()
             self.dataset.shuffle()
 
             # Evaluate the current model using the validation data.
-            print ("Evaluating the current model using " + str(self.dataset.num_valid_batches) + " validation batches.")
-            valid_loss = self.evaluate(valid_dataset, self.dataset.num_valid_batches)
+            #print ("Evaluating the current model using " + str(self.dataset.num_valid_batches) + " validation batches.")
+            #valid_loss = self.evaluate(valid_dataset, self.dataset.num_valid_batches)
 
             print ("Epoch " + str(self.checkpoint.epoch.numpy()) +\
                    " training loss = " + str(train_loss.numpy()) +\
-                   " validation loss = " + str(valid_loss.numpy()) +\
+                   #" validation loss = " + str(valid_loss.numpy()) +\
                    " training timing: " + str(timing) + " sec")
 
             # Write the loss values to the output files.
-            f = open("loss-train.txt", "a")
-            f.write(str(train_loss.numpy()) + "\n")
-            f.close()
-            f = open("loss-valid.txt", "a")
-            f.write(str(valid_loss.numpy()) + "\n")
-            f.close()
+            #f = open("loss-train.txt", "a")
+            #f.write(str(train_loss.numpy()) + "\n")
+            #f.close()
+            #f = open("loss-valid.txt", "a")
+            #f.write(str(valid_loss.numpy()) + "\n")
+            #f.close()
 
     def evaluate (self, dataset, num_valid_batches):
         self.dataset.valid_file_index = 0
@@ -131,14 +139,12 @@ class Trainer:
         self.checkpoint.model.fit(train_dataset,
                                   shuffle = False,
                                   callbacks = callbacks,
+                                  max_queue_size = 0,
                                   epochs = self.num_epochs,
                                   workers=1, use_multiprocessing=False,  
                                   steps_per_epoch = train_dataset.num_batches)
                                   #validation_data = valid_dataset,
                                   #validation_steps = valid_dataset.num_batches)
-
-def test_fc():
-    print ("It's test_fc")
 
 if __name__ == "__main__":
     args = get_parser()

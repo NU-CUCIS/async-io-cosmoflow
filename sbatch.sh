@@ -4,7 +4,7 @@
 #SBATCH --qos=regular
 #SBATCH --nodes=1
 #SBATCH --tasks-per-node=2
-#SBATCH --cpus-per-task=20
+#SBATCH --cpus-per-task=40
 #SBATCH --constraint=gpu
 #SBATCH -G 2
 #SBATCH -A m844
@@ -22,6 +22,7 @@ ulimit -c unlimited
 
 cd /global/homes/s/slz839/cosmo/tf2-cosmoflow
 srun -n 2 python3 train.py --epochs=1 --batch_size=8
+#srun -n 1 python3 train.py --epochs=1 --batch_size=8
 
 #module unload gcc/8.3.0
 #module unload cuda/10.1.243

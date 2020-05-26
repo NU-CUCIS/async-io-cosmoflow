@@ -9,7 +9,7 @@ import tensorflow as tf
 import yaml
 import numpy as np
 import h5py
-import multiprocessing
+import threading
 from tensorflow.keras.utils import Sequence
 
 class cosmoflow_keras (Sequence):
@@ -19,8 +19,8 @@ class cosmoflow_keras (Sequence):
         self.mode = mode
         self.rng = np.random.default_rng()
         self.num_cached_batches = 0
-        self.lock = multiprocessing.Lock()
-        self.cv = multiprocessing.Condition(lock = self.lock)
+        self.lock = threading.Lock()
+        self.cv = threading.Condition(lock = self.lock)
         self.num_files_in_cache = 1
         self.file_index = 0
 
@@ -102,14 +102,14 @@ class cosmoflow_keras (Sequence):
                 file_index = self.file_index
 
             f = h5py.File(self.files[file_index], 'r')
-            self.images = f['3Dmap'][:]
-            self.labels = f['unitPar'][:]
+            self.cached_data = f['3Dmap'][:]
+            self.cached_label = f['unitPar'][:]
             f.close()
 
             self.file_index += 1
             if self.file_index == len(self.files):
                 self.file_index = 0
-            self.num_cached_batches = int(self.images.shape[0] / self.batch_size)
+            self.num_cached_batches = int(self.cached_data.shape[0] / self.batch_size)
 
             # Some files have fewer samples than 128.
             if self.mode == 'train':
@@ -130,6 +130,6 @@ class cosmoflow_keras (Sequence):
         # Get a mini-batch from the memory buffer.
         self.num_cached_batches -= 1
         index = self.batch_list[self.num_cached_batches]
-        images = self.images[index : index + self.batch_size]
-        labels = self.labels[index : index + self.batch_size]
+        images = self.cached_data[index : index + self.batch_size]
+        labels = self.cached_label[index : index + self.batch_size]
         return (images, labels)
