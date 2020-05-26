@@ -23,8 +23,9 @@ class Reader:
         while 1:
             self.dataset.lock.acquire()
             # Read a file into buffer[tail].
-            while (self.finish == 0) and (self.dataset.num_files_in_cache > 0):
-                print ("Okay, I will sleep...")
+            while (self.finish == 0) and (self.dataset.num_files_in_cache > self.dataset.num_files_to_keep):
+                t = time.time()
+                print ("Okay, I will sleep... at " + str(t))
                 self.dataset.cv.wait()
             self.dataset.lock.release()
 
