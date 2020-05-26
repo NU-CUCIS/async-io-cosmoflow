@@ -149,12 +149,12 @@ class cosmoflow_keras (Sequence):
         ## Check if the current file has been all consumed.
         ## If yes, increase the head offset.
         ## Whenever a file is consumed, notify the i/o thread.
-        #if self.num_cached_batches == 0:
         self.lock.acquire()
-        self.num_files_in_cache -= 1
-        self.head += 1
-        if self.head == self.num_files_to_keep:
-            self.head = 0
+        if self.num_cached_batches == 0:
+            self.num_files_in_cache -= 1
+            self.head += 1
+            if self.head == self.num_files_to_keep:
+                self.head = 0
         self.cv.notify()
         self.lock.release()
 

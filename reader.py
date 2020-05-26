@@ -13,15 +13,10 @@ import threading
 class Reader:
     def __init__ (self, dataset):
         self.dataset = dataset
+        print ("R" + str(self.dataset.rank) + " offset: " + str(self.dataset.offset))
         self.file_index = 0
         self.finish = 0
         self.rng = np.random.default_rng()
-        self.shuffle()
-
-    def shuffle (self):
-        # Shuffle the files.
-        self.shuffled_index = np.arange(len(self.dataset.files))
-        self.rng.shuffle(self.shuffled_index)
 
     def activate (self):
         print ("Thread starting for " + str(self.dataset.mode) + " dataset.")
@@ -40,7 +35,7 @@ class Reader:
 
             # Check which file should be read into the memory space.
             if self.dataset.mode == 'train':
-                file_index = self.shuffled_index[self.file_index]
+                file_index = self.dataset.shuffled_index[self.file_index + self.dataset.offset]
             else:
                 file_index = self.file_index
 
@@ -60,7 +55,7 @@ class Reader:
             self.dataset.cv.notify()
             self.dataset.lock.release()
 
-            print ("Async reader reads files[" + str(self.file_index) + "] " +\
+            print ("Async reader reads files[" + str(self.file_index + self.dataset.offset) + "] " +\
                    self.dataset.files[file_index] +\
                    " now, head: " + str(self.dataset.head) +\
                    ", tail: " + str(self.dataset.tail) + \
@@ -68,7 +63,7 @@ class Reader:
 
             # Remember which file was read just now.
             self.file_index += 1
-            if self.file_index == len(self.dataset.files):
+            if self.file_index == self.dataset.num_local_files:
                 self.file_index = 0
 
     def deactivate (self):
