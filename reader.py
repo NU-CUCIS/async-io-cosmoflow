@@ -23,7 +23,7 @@ class Reader:
         while 1:
             self.dataset.lock.acquire()
             # Read a file into buffer[tail].
-            while (self.finish == 0) and (self.dataset.num_files_in_cache > self.dataset.num_files_to_keep):
+            while (self.finish == 0) and (self.dataset.num_files_in_cache == self.dataset.num_files_to_keep):
                 t = time.time()
                 print ("Okay, I will sleep... at " + str(t))
                 self.dataset.cv.wait()
@@ -56,7 +56,7 @@ class Reader:
             self.dataset.cv.notify()
             self.dataset.lock.release()
 
-            print ("Async reader reads files[" + str(self.file_index + self.dataset.offset) + "] " +\
+            print ("R" + str(self.dataset.rank) + " Async reader reads files[" + str(self.file_index + self.dataset.offset) + "] " +\
                    self.dataset.files[file_index] +\
                    " now, head: " + str(self.dataset.head) +\
                    ", tail: " + str(self.dataset.tail) + \

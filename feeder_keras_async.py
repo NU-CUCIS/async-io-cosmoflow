@@ -113,11 +113,15 @@ class cosmoflow_keras (Sequence):
 
     def __getitem__(self, input_index = 0):
         # Check if there is a file in the memory buffer.
+        t = time.time()
+        print ("R" + str(self.rank) + " starting getitem at " + str(t))
         self.lock.acquire()
         while self.num_files_in_cache == 0:
             self.cv.wait()
         self.cv.notify()
         self.lock.release()
+        t = time.time()
+        print ("R" + str(self.rank) + " okay, go aheda at " + str(t))
 
         # If num_cached_batches is 0 and went through the above wait(),
         # it means that a new file has been loaded by the reader.
@@ -155,6 +159,7 @@ class cosmoflow_keras (Sequence):
             self.head += 1
             if self.head == self.num_files_to_keep:
                 self.head = 0
+            print ("R" + str(self.rank) + " I consumed one file! get up and read a new file!")
             self.cv.notify()
             self.lock.release()
 
