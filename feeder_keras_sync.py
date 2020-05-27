@@ -11,9 +11,13 @@ import numpy as np
 import h5py
 import threading
 from tensorflow.keras.utils import Sequence
+from mpi4py import MPI
 
 class cosmoflow_keras (Sequence):
     def __init__ (self, yaml_file, batch_size = 8, mode = 'train', rank = 0):
+        self.comm = MPI.COMM_WORLD
+        self.size = self.comm.Get_size()
+
         self.rank = rank
         self.batch_size = batch_size
         self.mode = mode
@@ -70,10 +74,19 @@ class cosmoflow_keras (Sequence):
                 print (file_path)
 
         if mode == 'train':
-            self.num_batches = int(self.batches_per_file * len(self.files))
-            print ("Number of training batches in the given " + str(len(self.files)) +
+            self.num_local_files = int(len(self.files) / self.size)
+            self.offset = self.num_local_files * self.rank
+            if (len(self.files) % self.size != 0):
+                print ("Number of training files is not divisible by the number of processes!")
+                exit()
+            self.num_batches = int(self.batches_per_file * self.num_local_files)
+            print ("Number of training batches in the given " + str(self.num_local_files) +
                    " files: " + str(self.num_batches))
             self.shuffle()
+            #self.num_batches = int(self.batches_per_file * len(self.files))
+            #print ("Number of training batches in the given " + str(len(self.files)) +
+            #       " files: " + str(self.num_batches))
+            #self.shuffle()
         else:
             self.num_batches = 0
             for file_path in self.files:
@@ -94,10 +107,12 @@ class cosmoflow_keras (Sequence):
     def __getitem__(self, input_index = 0):
         # Read a new file if there are no cached batches.
         print ("input_index: " + str(input_index) + " and now " + str(self.num_cached_batches) + " batches are in queue.")
+        t = time.time()
+        print ("R" + str(self.rank) + " getitem at " + str(t))
         if self.num_cached_batches == 0:
             start = time.time()
             if self.mode == 'train':
-                file_index = self.shuffled_index[self.file_index]
+                file_index = self.shuffled_index[self.file_index + self.offset]
             else:
                 file_index = self.file_index
 
