@@ -4,6 +4,7 @@ Sunwoo Lee
 
 Northwestern University
 '''
+import multiprocessing as mp
 from multiprocessing import Process, Manager, Lock
 from multiprocessing.managers import BaseManager
 
@@ -20,10 +21,9 @@ from tensorflow.keras.metrics import Mean
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.optimizers.schedules import PiecewiseConstantDecay
 from feeder_tf import cosmoflow_tf
-#from feeder_keras_async import cosmoflow_keras
-from feeder_keras_sync import cosmoflow_keras
+from feeder_keras_async import cosmoflow_keras
+#from feeder_keras_sync import cosmoflow_keras
 #from feeder_tf import cosmoflow_tf
-from reader import Reader
 from model import model
 
 def get_parser():
@@ -236,28 +236,45 @@ def tf_thread (train_dataset, valid_dataset):
                          #validation_steps = valid_dataset.num_batches)
     t2 = time.time()
     print ("fit took " + str(t2 - t1) + " and ended at " + str(t2))
-
-def io_thread (train_dataset, valid_dataset):
-    t = time.time()
-    print ("i/o thread " + str(train_dataset.num_batches) + " at " + str(t))
     
+def io_thread (num_files_in_cache, finish, rank, lock, cv):
+    while 1:
+        lock.acquire()
+        #print ("R" + str(rank) + " okay let's get started. finish: " + str(finish.value) + " with " + str(num_files_in_cache.value) + " files")
+        #while finish.value == 0 and num_files_in_cache.value > 0:
+        #    print ("R" + str(rank) + " will wait...")
+        #    cv.wait()
+        if num_files_in_cache.value == 0:
+            num_files_in_cache.value += 1
+            print ("R" + str(rank) + " woke up and increased num_files_in_cache to " + str(num_files_in_cache.value))
+        if finish.value == 1:
+            print ("R" + str(rank) + " Okay i will go die...")
+            break
+        lock.release()
+        time.sleep(0.5)
+
 if __name__ == "__main__":
     args = get_parser()
     hvd.init()
 
-    train_dataset = cosmoflow_keras("test.yaml", batch_size = args.batch_size, mode = 'train', rank = hvd.rank())
-    valid_dataset = cosmoflow_keras("test.yaml", batch_size = args.batch_size, mode = 'valid', rank = hvd.rank())
+    lock = mp.Lock()
+    cv = mp.Condition(lock = lock)
 
-    BaseManager.register('train_dataset', train_dataset)
-    BaseManager.register('valid_dataset', valid_dataset)
-    manager = BaseManager()
-    manager.start()
+    train_dataset = cosmoflow_keras("test.yaml", batch_size = args.batch_size, mode = 'train',
+                                    rank = hvd.rank(),
+                                    lock = lock,
+                                    cv = cv)
+    valid_dataset = cosmoflow_keras("test.yaml", batch_size = args.batch_size, mode = 'valid',
+                                    rank = hvd.rank(),
+                                    lock = lock,
+                                    cv = cv)
 
-    io_process = Process(target = io_thread, args = (train_dataset, valid_dataset))
+    io_process = Process(target = io_thread, args = (train_dataset.num_files_in_cache, train_dataset.finish, hvd.rank(), lock, cv))
     io_process.start()
     # NOTE: have no idea why but it hangs when tf_thread is created as Process.
     # So, let's just call it instead of making a separate process.
     tf_thread(train_dataset, valid_dataset)
 
+    train_dataset.finish.value = 1
     io_process.join()
     print ("All done!")

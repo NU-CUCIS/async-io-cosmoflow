@@ -10,27 +10,30 @@ import tensorflow as tf
 import yaml
 import numpy as np
 import h5py
-import threading
+#import threading
+import multiprocessing as mp
 from tensorflow.keras.utils import Sequence
 from mpi4py import MPI
 
 class cosmoflow_keras (Sequence):
-    def __init__ (self, yaml_file, batch_size = 8, mode = 'train', rank = 0):
+    def __init__ (self, yaml_file, batch_size = 8, mode = 'train', rank = 0, lock = None, cv = None):
         self.comm = MPI.COMM_WORLD
         self.size = self.comm.Get_size()
 
+        self.num_files_in_cache = mp.Value('i') 
+        self.finish = mp.Value('i') 
+        self.finish.value = 0
         self.batch_size = batch_size
         self.rank = rank
         self.mode = mode
         self.rng = np.random.default_rng()
         self.num_cached_batches = 0
         self.file_index = 0
-        self.lock = threading.Lock()
-        self.cv = threading.Condition(lock = self.lock)
-        self.empty = 1
+        self.lock = lock
+        self.cv = cv
 
         self.num_files_to_keep = 1
-        self.num_files_in_cache = 0
+        self.num_files_in_cache.value = 0
         self.head = 0
         self.tail = 0
         self.cached_data = [None] * self.num_files_to_keep
@@ -113,21 +116,22 @@ class cosmoflow_keras (Sequence):
 
     def __getitem__(self, input_index = 0):
         # Check if there is a file in the memory buffer.
-        t = time.time()
-        print ("R" + str(self.rank) + " starting getitem at " + str(t))
         self.lock.acquire()
-        while self.num_files_in_cache == 0:
+        while self.num_files_in_cache.value == 0:
+            t = time.time()
+            print ("R" + str(self.rank) + " okay, getitem will wait... at " + str(t))
             self.cv.wait()
         self.cv.notify()
         self.lock.release()
         t = time.time()
-        print ("R" + str(self.rank) + " okay, go aheda at " + str(t))
+        print ("R" + str(self.rank) + " okay, go ahead (num_files: " + str(self.num_files_in_cache.value) + ") at " + str(t))
 
         # If num_cached_batches is 0 and went through the above wait(),
         # it means that a new file has been loaded by the reader.
         # So, update the num_cached_batches using the head offset.
         if self.num_cached_batches == 0:
-            self.num_cached_batches = int(self.cached_data[self.head].shape[0] / self.batch_size)
+            #self.num_cached_batches = int(self.cached_data[self.head].shape[0] / self.batch_size)
+            self.num_cached_batches = int(128 / self.batch_size)
 
             # Create the random indices for the loaded batches.
             # Note that some files have fewer samples than 128.
@@ -143,19 +147,22 @@ class cosmoflow_keras (Sequence):
             else:
                 self.batch_list = np.arange(self.num_cached_batches)
 
-        ## Read a batch from the cached file.
+        ### Read a batch from the cached file.
         self.num_cached_batches -= 1
         index = self.batch_list[self.num_cached_batches]
 
-        images = self.cached_data[self.head][index : index + self.batch_size]
-        labels = self.cached_label[self.head][index : index + self.batch_size]
+        #images = self.cached_data[self.head][index : index + self.batch_size]
+        #labels = self.cached_label[self.head][index : index + self.batch_size]
+        images = np.zeros([self.batch_size, 128, 128, 128, 12])
+        labels = np.zeros([self.batch_size, 4])
 
-        ## Check if the current file has been all consumed.
-        ## If yes, increase the head offset.
-        ## Whenever a file is consumed, notify the i/o thread.
+        # Check if the current file has been all consumed.
+        # If yes, increase the head offset.
+        # Whenever a file is consumed, notify the i/o thread.
+        print ("R" + str(self.rank) + " num_cached_batches: " + str(self.num_cached_batches))
         if self.num_cached_batches == 0:
             self.lock.acquire()
-            self.num_files_in_cache -= 1
+            self.num_files_in_cache.value -= 1
             self.head += 1
             if self.head == self.num_files_to_keep:
                 self.head = 0
