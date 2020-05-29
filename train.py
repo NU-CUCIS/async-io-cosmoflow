@@ -13,6 +13,7 @@ import time
 import threading
 from tqdm import tqdm
 import numpy as np
+import h5py
 from mpi4py import MPI
 
 import horovod.tensorflow.keras as hvd
@@ -95,6 +96,8 @@ class io_daemon:
         self.valid_dataset = valid_dataset
         self.file_index = 0
         self.prev_write_index = 0
+        self.cached_data = [None] * 2
+        self.cached_label = [None] * 2
 
         self.shuffle()
 
@@ -121,11 +124,17 @@ class io_daemon:
             # Read a new file.
             if num_files_in_cache.value < 2:
                 file_index = self.shuffled_index[self.file_index + self.train_dataset.offset]
-                write_index = (self.prev_write_index + 1) % 2
+                write_index = self.prev_write_index % 2
                 self.prev_write_index = write_index
-                t = time.time()
+                start = time.time()
+                f = h5py.File(self.train_dataset.files[file_index], 'r')
+                self.cached_data[write_index] = f['3Dmap'][:]
+                self.cached_label[write_index] = f['unitPar'][:]
+                f.close()
+                end = time.time()
                 print ("R" + str(rank) + " reads " + self.train_dataset.files[file_index] + \
-                       " into buffer[" + str(write_index) + "] at " + str(t))
+                       " into buffer[" + str(write_index) + "] at " + str(start) + \
+                       " i/o time: " + str(end - start))
 
             # Update the shared status varaibles.
             lock.acquire()
@@ -138,13 +147,6 @@ class io_daemon:
             lock.release()
 
             time.sleep(0.5)
-
-            #start = time.time()
-            #f = h5py.File(self.dataset.files[file_index], 'r')
-            #self.dataset.cached_data[self.dataset.tail] = f['3Dmap'][:]
-            #self.dataset.cached_label[self.dataset.tail] = f['unitPar'][:]
-            #f.close()
-            #end = time.time()
 
 if __name__ == "__main__":
     args = get_parser()
