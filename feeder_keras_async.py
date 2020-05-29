@@ -166,6 +166,7 @@ class cosmoflow_keras (Sequence):
         if self.num_cached_batches == 0:
             self.lock.acquire()
             self.num_files_in_cache.value -= 1
+            self.buffer_index.value += 1
             self.head += 1
             if self.head == self.num_files_to_keep:
                 self.head = 0

@@ -94,6 +94,8 @@ class io_daemon:
         self.train_dataset = train_dataset
         self.valid_dataset = valid_dataset
         self.file_index = 0
+        self.prev_write_index = 0
+
         self.shuffle()
 
     def shuffle (self):
@@ -105,30 +107,34 @@ class io_daemon:
         print ("R0 shuffled the files... the first file id is " + str(self.shuffled_index[0]))
 
     def run (self, num_files_in_cache, buffer_index, finish, rank, lock, cv):
+        '''
+        Multiprocessing.Condition makes the program hang.
+        We will work on it later.
+        '''
         while 1:
             lock.acquire()
-            '''
-            Multiprocessing.Condition makes the program hang.
-            We will work on it later.
-            '''
-            if num_files_in_cache.value == 0:
-                num_files_in_cache.value += 1
-                file_index = self.shuffled_index[self.file_index + self.train_dataset.offset]
-                self.file_index += 1
-                if self.file_index == self.train_dataset.num_local_files:
-                    self.file_index = 0
-                buffer_index.value = (self.file_index % 2)
-
-                t = time.time()
-                print ("R" + str(rank) + " woke up and file_index: " + str(self.file_index) + \
-                       " buffer_index in io_thread: " + str(buffer_index.value) + \
-                       " increased num_files_in_cache to " + str(num_files_in_cache.value) + \
-                       " reading " + self.train_dataset.files[file_index] + " at " + str(t))
-
             if finish.value == 1:
                 print ("R" + str(rank) + " Okay i will go die...")
                 break
+            lock.release()
 
+            # Read a new file.
+            if num_files_in_cache.value < 2:
+                file_index = self.shuffled_index[self.file_index + self.train_dataset.offset]
+                write_index = (self.prev_write_index + 1) % 2
+                self.prev_write_index = write_index
+                t = time.time()
+                print ("R" + str(rank) + " reads " + self.train_dataset.files[file_index] + \
+                       " into buffer[" + str(write_index) + "] at " + str(t))
+
+            # Update the shared status varaibles.
+            lock.acquire()
+            if num_files_in_cache.value < 2:
+                num_files_in_cache.value += 1
+                self.file_index += 1
+                if self.file_index == self.train_dataset.num_local_files:
+                    self.file_index = 0
+            cv.notify()
             lock.release()
 
             time.sleep(0.5)
@@ -139,26 +145,6 @@ class io_daemon:
             #self.dataset.cached_label[self.dataset.tail] = f['unitPar'][:]
             #f.close()
             #end = time.time()
-
-            ## Update the tail offset.
-            #self.dataset.lock.acquire()
-            #self.dataset.tail += 1
-            #if self.dataset.tail == self.dataset.num_files_to_keep:
-            #    self.dataset.tail = 0
-            #self.dataset.num_files_in_cache += 1
-            #self.dataset.cv.notify()
-            #self.dataset.lock.release()
-
-            #print ("R" + str(self.dataset.rank) + " Async reader reads files[" + str(self.file_index + self.dataset.offset) + "] " +\
-            #       self.dataset.files[file_index] +\
-            #       " now, head: " + str(self.dataset.head) +\
-            #       ", tail: " + str(self.dataset.tail) + \
-            #       " timing: " + str(end - start))
-
-            ## Remember which file was read just now.
-            #self.file_index += 1
-            #if self.file_index == self.dataset.num_local_files:
-            #    self.file_index = 0
 
 if __name__ == "__main__":
     args = get_parser()
