@@ -180,9 +180,8 @@ class cosmoflow_keras (Sequence):
             self.lock.acquire()
             self.num_files_in_cache.value -= 1
             self.buffer_index.value += 1
-            #self.head += 1
-            #if self.head == self.num_files_to_keep:
-            #    self.head = 0
+            if self.buffer_index.value == 2: # double buffering
+                self.buffer_index.value = 0
             print ("R" + str(self.rank) + " I consumed one file! get up and read a new file!")
             self.cv.notify()
             self.lock.release()
