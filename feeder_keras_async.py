@@ -24,6 +24,7 @@ class cosmoflow_keras (Sequence):
         self.size = self.comm.Get_size()
 
         self.num_files_in_cache = num_files_in_cache
+        self.num_files_in_cache.value = 0
         self.buffer_index = buffer_index
         self.buffer_index.value = 0
         self.finish = finish
@@ -40,13 +41,14 @@ class cosmoflow_keras (Sequence):
         self.label0 = label0
         self.data1 = data1
         self.label1 = label1
+        self.data_shape = (128, 128, 128, 128, 12)
+        self.label_shape = (128, 4)
 
-        self.num_files_to_keep = 1
-        self.num_files_in_cache.value = 0
-        self.head = 0
-        self.tail = 0
-        self.cached_data = [None] * self.num_files_to_keep
-        self.cached_label = [None] * self.num_files_to_keep
+        #self.num_files_to_keep = 1
+        #self.head = 0
+        #self.tail = 0
+        #self.cached_data = [None] * self.num_files_to_keep
+        #self.cached_label = [None] * self.num_files_to_keep
 
         # Parse the given yaml file and get the top dir and file names.
         with open (yaml_file, "r") as f:
@@ -160,26 +162,27 @@ class cosmoflow_keras (Sequence):
         self.num_cached_batches -= 1
         index = self.batch_list[self.num_cached_batches]
 
-        #images = self.cached_data[self.head][index : index + self.batch_size]
-        #labels = self.cached_label[self.head][index : index + self.batch_size]
-        images = np.zeros([self.batch_size, 128, 128, 128, 12])
-        labels = np.zeros([self.batch_size, 4])
         if self.buffer_index.value == 0:
-            print ("main thread data0[1000]: " + str(self.data0[1000]))
+            data_np = np.frombuffer(self.data0, dtype = np.uint16).reshape(self.data_shape)
+            label_np = np.frombuffer(self.label0, dtype = np.float32).reshape(self.label_shape)
+            images = data_np[index:index + self.batch_size]
+            labels = label_np[index:index + self.batch_size]
         else:
-            print ("main thread data1[1000]: " + str(self.data1[1000]))
+            data_np = np.frombuffer(self.data1, dtype = np.uint16).reshape(self.data_shape)
+            label_np = np.frombuffer(self.label1, dtype = np.float32).reshape(self.label_shape)
+            images = data_np[index:index + self.batch_size]
+            labels = label_np[index:index + self.batch_size]
 
         # Check if the current file has been all consumed.
         # If yes, increase the head offset.
         # Whenever a file is consumed, notify the i/o thread.
-        print ("R" + str(self.rank) + " num_cached_batches: " + str(self.num_cached_batches))
         if self.num_cached_batches == 0:
             self.lock.acquire()
             self.num_files_in_cache.value -= 1
             self.buffer_index.value += 1
-            self.head += 1
-            if self.head == self.num_files_to_keep:
-                self.head = 0
+            #self.head += 1
+            #if self.head == self.num_files_to_keep:
+            #    self.head = 0
             print ("R" + str(self.rank) + " I consumed one file! get up and read a new file!")
             self.cv.notify()
             self.lock.release()

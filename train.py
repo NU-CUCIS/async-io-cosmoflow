@@ -129,20 +129,16 @@ class io_daemon:
                 # Read a file.
                 start = time.time()
                 f = h5py.File(self.train_dataset.files[file_index], 'r')
-                data_shape = (128, 128, 128, 128, 12)
-                label_shape = (128, 4)
                 if write_index == 0:
-                    data_np = np.frombuffer(data0, dtype = np.uint16).reshape(data_shape)
+                    data_np = np.frombuffer(data0, dtype = np.uint16).reshape(self.train_dataset.data_shape)
+                    label_np = np.frombuffer(label0, dtype = np.float32).reshape(self.train_dataset.label_shape)
                     np.copyto(data_np, f['3Dmap'][:])
-                    label_np = np.frombuffer(label0, dtype = np.float32).reshape(label_shape)
                     np.copyto(label_np, f['unitPar'][:])
-                    print ("i/othread data0[1000]: " + str(data0[1000]))
                 else:
-                    data_np = np.frombuffer(data1, dtype = np.uint16).reshape(data_shape)
+                    data_np = np.frombuffer(data1, dtype = np.uint16).reshape(self.train_dataset.data_shape)
+                    label_np = np.frombuffer(label1, dtype = np.float32).reshape(self.train_dataset.label_shape)
                     np.copyto(data_np, f['3Dmap'][:])
-                    label_np = np.frombuffer(label1, dtype = np.float32).reshape(label_shape)
                     np.copyto(label_np, f['unitPar'][:])
-                    print ("i/othread data1[1000]: " + str(data1[1000]))
                 f.close()
                 end = time.time()
                 print ("R" + str(rank) + " reads " + self.train_dataset.files[file_index] + \
