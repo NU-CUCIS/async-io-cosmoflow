@@ -18,12 +18,14 @@ from mpi4py import MPI
 class cosmoflow_keras (Sequence):
     def __init__ (self, yaml_file, batch_size = 8, mode = 'train',
                   num_files_in_cache = None, buffer_index = None, finish = None,
-                  rank = 0, lock = None, cv = None):
+                  rank = 0, lock = None, cv = None,
+                  data0 = None, label0 = None, data1 = None, label1 = None):
         self.comm = MPI.COMM_WORLD
         self.size = self.comm.Get_size()
 
         self.num_files_in_cache = num_files_in_cache
         self.buffer_index = buffer_index
+        self.buffer_index.value = 0
         self.finish = finish
         self.finish.value = 0
         self.batch_size = batch_size
@@ -34,6 +36,10 @@ class cosmoflow_keras (Sequence):
         self.file_index = 0
         self.lock = lock
         self.cv = cv
+        self.data0 = data0
+        self.label0 = label0
+        self.data1 = data1
+        self.label1 = label1
 
         self.num_files_to_keep = 1
         self.num_files_in_cache.value = 0
@@ -158,6 +164,10 @@ class cosmoflow_keras (Sequence):
         #labels = self.cached_label[self.head][index : index + self.batch_size]
         images = np.zeros([self.batch_size, 128, 128, 128, 12])
         labels = np.zeros([self.batch_size, 4])
+        if self.buffer_index.value == 0:
+            print ("main thread data0[1000]: " + str(self.data0[1000]))
+        else:
+            print ("main thread data1[1000]: " + str(self.data1[1000]))
 
         # Check if the current file has been all consumed.
         # If yes, increase the head offset.

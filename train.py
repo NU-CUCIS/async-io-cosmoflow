@@ -96,8 +96,10 @@ class io_daemon:
         self.valid_dataset = valid_dataset
         self.file_index = 0
         self.prev_write_index = -1
-        self.cached_data = [None] * 2
-        self.cached_label = [None] * 2
+        self.data_buffer_size = 128 * 128 * 128 * 128 * 12
+        self.label_buffer_size = 128 * 4
+        #self.cached_data = [None] * 2
+        #self.cached_label = [None] * 2
 
         self.shuffle()
 
@@ -109,18 +111,12 @@ class io_daemon:
         self.comm.Bcast(self.shuffled_index, root = 0) 
         print ("R0 shuffled the files... the first file id is " + str(self.shuffled_index[0]))
 
-    def run (self, num_files_in_cache, buffer_index, finish, rank, lock, cv):
+    def run (self, num_files_in_cache, buffer_index, finish, rank, lock, cv, data0, label0, data1, label1):
         '''
         Multiprocessing.Condition makes the program hang.
         We will work on it later.
         '''
         while 1:
-            #lock.acquire()
-            #if finish.value == 1:
-            #    print ("R" + str(rank) + " Okay i will go die...")
-            #    break
-            #lock.release()
-
             # Read a new file if any buffer is empty.
             if num_files_in_cache.value < 2:
                 # Choose a file to read.
@@ -133,8 +129,20 @@ class io_daemon:
                 # Read a file.
                 start = time.time()
                 f = h5py.File(self.train_dataset.files[file_index], 'r')
-                self.cached_data[write_index] = f['3Dmap'][:]
-                self.cached_label[write_index] = f['unitPar'][:]
+                data_shape = (128, 128, 128, 128, 12)
+                label_shape = (128, 4)
+                if write_index == 0:
+                    data_np = np.frombuffer(data0, dtype = np.uint16).reshape(data_shape)
+                    np.copyto(data_np, f['3Dmap'][:])
+                    label_np = np.frombuffer(label0, dtype = np.float32).reshape(label_shape)
+                    np.copyto(label_np, f['unitPar'][:])
+                    print ("i/othread data0[1000]: " + str(data0[1000]))
+                else:
+                    data_np = np.frombuffer(data1, dtype = np.uint16).reshape(data_shape)
+                    np.copyto(data_np, f['3Dmap'][:])
+                    label_np = np.frombuffer(label1, dtype = np.float32).reshape(label_shape)
+                    np.copyto(label_np, f['unitPar'][:])
+                    print ("i/othread data1[1000]: " + str(data1[1000]))
                 f.close()
                 end = time.time()
                 print ("R" + str(rank) + " reads " + self.train_dataset.files[file_index] + \
@@ -161,11 +169,18 @@ if __name__ == "__main__":
     args = get_parser()
     hvd.init()
 
+    data_per_file_size = 128 * 128 * 128 * 128 * 12
+    label_per_file_size = 128 * 4
+
     lock = mp.Lock()
     cv = mp.Condition(lock = lock)
     num_files_in_cache = mp.Value('i')
     finish = mp.Value('i')
     buffer_index = mp.Value('i')
+    data0 = mp.RawArray('H', data_per_file_size)
+    label0 = mp.RawArray('f', label_per_file_size)
+    data1 = mp.RawArray('H', data_per_file_size)
+    label1 = mp.RawArray('f', label_per_file_size)
 
     train_dataset = cosmoflow_keras("test.yaml", batch_size = args.batch_size, mode = 'train',
                                     num_files_in_cache = num_files_in_cache,
@@ -173,18 +188,26 @@ if __name__ == "__main__":
                                     finish = finish,
                                     rank = hvd.rank(),
                                     lock = lock,
-                                    cv = cv)
+                                    cv = cv,
+                                    data0 = data0,
+                                    label0 = label0,
+                                    data1 = data1,
+                                    label1 = label1)
     valid_dataset = cosmoflow_keras("test.yaml", batch_size = args.batch_size, mode = 'valid',
                                     num_files_in_cache = num_files_in_cache,
                                     buffer_index = buffer_index,
                                     finish = finish,
                                     rank = hvd.rank(),
                                     lock = lock,
-                                    cv = cv)
+                                    cv = cv,
+                                    data0 = data0,
+                                    label0 = label0,
+                                    data1 = data1,
+                                    label1 = label1)
 
     daemon = io_daemon(hvd.rank(), train_dataset, valid_dataset)
     
-    io_process = Process(target = daemon.run, args = (num_files_in_cache, buffer_index, finish, hvd.rank(), lock, cv))
+    io_process = Process(target = daemon.run, args = (num_files_in_cache, buffer_index, finish, hvd.rank(), lock, cv, data0, label0, data1, label1))
     io_process.start()
 
     # NOTE: have no idea why but it hangs when tf_thread is created as Process.
