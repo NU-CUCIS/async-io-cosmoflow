@@ -95,7 +95,7 @@ class io_daemon:
         self.train_dataset = train_dataset
         self.valid_dataset = valid_dataset
         self.file_index = 0
-        self.prev_write_index = 0
+        self.prev_write_index = -1
         self.cached_data = [None] * 2
         self.cached_label = [None] * 2
 
@@ -124,7 +124,7 @@ class io_daemon:
             # Read a new file.
             if num_files_in_cache.value < 2:
                 file_index = self.shuffled_index[self.file_index + self.train_dataset.offset]
-                write_index = self.prev_write_index % 2
+                write_index = (self.prev_write_index + 1) % 2
                 self.prev_write_index = write_index
                 start = time.time()
                 f = h5py.File(self.train_dataset.files[file_index], 'r')
