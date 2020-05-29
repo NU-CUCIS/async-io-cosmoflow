@@ -12,6 +12,8 @@ import argparse
 import time
 import threading
 from tqdm import tqdm
+import numpy as np
+from mpi4py import MPI
 
 import horovod.tensorflow.keras as hvd
 #import horovod.tensorflow as hvd
@@ -35,163 +37,6 @@ def get_parser():
 
     args = parser.parse_args()
     return args
-
-#def io():
-#    while 1:
-#        time.sleep(0.5)
-#        t = time.time()
-#        print ("--------woke up at " + str(t))
-#
-#def run():
-#    args = get_parser()
-#    hvd.init()
-#
-#    gpus = tf.config.experimental.list_physical_devices('GPU')
-#    for gpu in gpus:
-#        tf.config.experimental.set_memory_growth(gpu, True)
-#    if gpus:
-#        tf.config.experimental.set_visible_devices(gpus[hvd.local_rank()], 'GPU')
-#
-#    # Get the training dataset.
-#    #dataset = cosmoflow_tf("test.yaml", batch_size = args.batch_size)
-#    train_dataset = cosmoflow_keras("test.yaml", batch_size = args.batch_size, mode = 'train', rank = hvd.rank())
-#    valid_dataset = cosmoflow_keras("test.yaml", batch_size = args.batch_size, mode = 'valid', rank = hvd.rank())
-#    
-#    # Asynchronous reader
-#    #reader = Reader(train_dataset)
-#    #x = threading.Thread(target = reader.activate)
-#    #x.start()
-#
-#    print ("Main thread....")
-#
-#    # Get the model.
-#    cosmo_model = model()
-#
-#    # Perform the training.
-#    #trainer = Trainer(cosmo_model, dataset, args.epochs)
-#    trainer = Trainer(cosmo_model, train_dataset, args.epochs)
-#
-#    start = time.time()
-#    #trainer.train()
-#    trainer.call_fit(train_dataset, valid_dataset)
-#    end = time.time()
-#    print ("----------------- end-to-end time: " + str(end - start))
-#
-#    #reader.deactivate()
-#    #x.join()
-#
-#class Trainer:
-#    def __init__ (self, model, dataset = None, num_epochs = 1, checkpoint_dir = "./checkpoint"):
-#        self.num_epochs = num_epochs
-#        self.dataset = dataset
-#        self.model = model.build_model()
-#        self.model.summary()
-#        self.lr = PiecewiseConstantDecay(boundaries = [100],
-#                                         values = [1e-4, 5e-5])
-#        self.loss = MeanSquaredError()
-#        self.opt = Adam(lr = 1e-4)
-#        self.opt = hvd.DistributedOptimizer(self.opt)
-#        self.checkpoint = tf.train.Checkpoint(epoch = tf.Variable(0),
-#                                              model = self.model,
-#                                              optimizer = self.opt)
-#        self.checkpoint_manager = tf.train.CheckpointManager(checkpoint = self.checkpoint,
-#                                                             directory = checkpoint_dir,
-#                                                             max_to_keep = 3)
-#        self.checkpoint.model.compile(optimizer = self.checkpoint.optimizer, loss = 'mse', experimental_run_tf_function = False)
-#        self.resume()
-#
-#    def resume (self):
-#        if self.checkpoint_manager.latest_checkpoint:
-#            self.checkpoint.restore(self.checkpoint_manager.latest_checkpoint)
-#            print ("Model restored from checkpoint at epoch " + str(self.checkpoint.epoch.numpy()))
-#
-#    @tf.function
-#    def train_step (self, data, label):
-#        with tf.GradientTape() as tape:
-#            prediction = self.checkpoint.model(data, training = True)
-#            loss = self.loss(label, prediction)
-#        tape = hvd.DistributedGradientTape(tape)
-#        gradients = tape.gradient(loss, self.checkpoint.model.trainable_variables)
-#        self.checkpoint.optimizer.apply_gradients(zip(gradients, self.checkpoint.model.trainable_variables))
-#        return loss
-#
-#    def train (self):
-#        train_dataset = self.dataset.train_dataset()
-#        valid_dataset = self.dataset.valid_dataset()
-#
-#        for epoch_id in range(self.num_epochs):
-#            self.checkpoint.epoch.assign_add(1)
-#            self.dataset.train_file_index = 0
-#            loss_mean = Mean()
-#            self.start_time = time.perf_counter()
-#
-#            # Train the model.
-#            for i in tqdm(range(self.dataset.num_train_batches)):
-#                # I/O
-#                start = time.perf_counter()
-#                data, label = train_dataset.next()
-#                end = time.perf_counter()
-#                print ("i/o + device transfer: " + str(end - start))
-#
-#                # Computation
-#                start = time.perf_counter()
-#                loss = self.train_step(data, label)
-#                end = time.perf_counter()
-#                print ("comp: " + str(end - start))
-#                loss_mean(loss)
-#
-#                if epoch_id == 0 and i == 0:
-#                    hvd.broadcast_variables(self.checkpoint.model.variables, root_rank=0)
-#                    hvd.broadcast_variables(self.opt.variables(), root_rank=0)
-#
-#            timing = time.perf_counter() - self.start_time
-#            train_loss = loss_mean.result()
-#            loss_mean.reset_states()
-#
-#            #if hvd.rank() == 0:
-#            #    self.checkpoint_manager.save()
-#            self.dataset.shuffle()
-#
-#            # Evaluate the current model using the validation data.
-#            #print ("Evaluating the current model using " + str(self.dataset.num_valid_batches) + " validation batches.")
-#            #valid_loss = self.evaluate(valid_dataset, self.dataset.num_valid_batches)
-#
-#            print ("Epoch " + str(self.checkpoint.epoch.numpy()) +\
-#                   " training loss = " + str(train_loss.numpy()) +\
-#                   #" validation loss = " + str(valid_loss.numpy()) +\
-#                   " training timing: " + str(timing) + " sec")
-#
-#            # Write the loss values to the output files.
-#            #f = open("loss-train.txt", "a")
-#            #f.write(str(train_loss.numpy()) + "\n")
-#            #f.close()
-#            #f = open("loss-valid.txt", "a")
-#            #f.write(str(valid_loss.numpy()) + "\n")
-#            #f.close()
-#
-#    def evaluate (self, dataset, num_valid_batches):
-#        self.dataset.valid_file_index = 0
-#        loss_mean = Mean()
-#        for i in tqdm(range(num_valid_batches)):
-#            data, label = dataset.next()
-#            prediction = self.checkpoint.model(data)
-#            loss = self.loss(label, prediction)
-#            loss_mean(loss)
-#        return loss_mean.result()
-#
-#    def call_fit (self, train_dataset, valid_dataset):
-#        callbacks = [
-#            hvd.callbacks.BroadcastGlobalVariablesCallback(0)
-#        ]
-#        self.checkpoint.model.fit(train_dataset,
-#                                  shuffle = False,
-#                                  callbacks = callbacks,
-#                                  max_queue_size = 0,
-#                                  epochs = self.num_epochs,
-#                                  workers=1, use_multiprocessing=False,  
-#                                  steps_per_epoch = train_dataset.num_batches)
-#                                  #validation_data = valid_dataset,
-#                                  #validation_steps = valid_dataset.num_batches)
 
 def tf_thread (train_dataset, valid_dataset):
     gpus = tf.config.experimental.list_physical_devices('GPU')
@@ -237,21 +82,83 @@ def tf_thread (train_dataset, valid_dataset):
     t2 = time.time()
     print ("fit took " + str(t2 - t1) + " and ended at " + str(t2))
     
-def io_thread (num_files_in_cache, finish, rank, lock, cv):
-    while 1:
-        lock.acquire()
-        #print ("R" + str(rank) + " okay let's get started. finish: " + str(finish.value) + " with " + str(num_files_in_cache.value) + " files")
-        #while finish.value == 0 and num_files_in_cache.value > 0:
-        #    print ("R" + str(rank) + " will wait...")
-        #    cv.wait()
-        if num_files_in_cache.value == 0:
-            num_files_in_cache.value += 1
-            print ("R" + str(rank) + " woke up and increased num_files_in_cache to " + str(num_files_in_cache.value))
-        if finish.value == 1:
-            print ("R" + str(rank) + " Okay i will go die...")
-            break
-        lock.release()
-        time.sleep(0.5)
+class io_daemon:
+    def __init__ (self, rank, train_dataset, valid_dataset):
+        '''
+        These datasets are replicates of them in the main process.
+        We get these objects to reference the static values only.
+        '''
+        self.rank = rank
+        self.comm = MPI.COMM_WORLD
+        self.rng = np.random.default_rng()
+        self.train_dataset = train_dataset
+        self.valid_dataset = valid_dataset
+        self.file_index = 0
+        self.shuffle()
+
+    def shuffle (self):
+        # Shuffle the files.
+        self.shuffled_index = np.arange(len(self.train_dataset.files))
+        if self.rank == 0:
+            self.rng.shuffle(self.shuffled_index)
+        self.comm.Bcast(self.shuffled_index, root = 0) 
+        print ("R0 shuffled the files... the first file id is " + str(self.shuffled_index[0]))
+
+    def run (self, num_files_in_cache, buffer_index, finish, rank, lock, cv):
+        while 1:
+            lock.acquire()
+            '''
+            Multiprocessing.Condition makes the program hang.
+            We will work on it later.
+            '''
+            if num_files_in_cache.value == 0:
+                num_files_in_cache.value += 1
+                file_index = self.shuffled_index[self.file_index + self.train_dataset.offset]
+                self.file_index += 1
+                if self.file_index == self.train_dataset.num_local_files:
+                    self.file_index = 0
+                buffer_index.value = (self.file_index % 2)
+
+                t = time.time()
+                print ("R" + str(rank) + " woke up and file_index: " + str(self.file_index) + \
+                       " buffer_index in io_thread: " + str(buffer_index.value) + \
+                       " increased num_files_in_cache to " + str(num_files_in_cache.value) + \
+                       " reading " + self.train_dataset.files[file_index] + " at " + str(t))
+
+            if finish.value == 1:
+                print ("R" + str(rank) + " Okay i will go die...")
+                break
+
+            lock.release()
+
+            time.sleep(0.5)
+
+            #start = time.time()
+            #f = h5py.File(self.dataset.files[file_index], 'r')
+            #self.dataset.cached_data[self.dataset.tail] = f['3Dmap'][:]
+            #self.dataset.cached_label[self.dataset.tail] = f['unitPar'][:]
+            #f.close()
+            #end = time.time()
+
+            ## Update the tail offset.
+            #self.dataset.lock.acquire()
+            #self.dataset.tail += 1
+            #if self.dataset.tail == self.dataset.num_files_to_keep:
+            #    self.dataset.tail = 0
+            #self.dataset.num_files_in_cache += 1
+            #self.dataset.cv.notify()
+            #self.dataset.lock.release()
+
+            #print ("R" + str(self.dataset.rank) + " Async reader reads files[" + str(self.file_index + self.dataset.offset) + "] " +\
+            #       self.dataset.files[file_index] +\
+            #       " now, head: " + str(self.dataset.head) +\
+            #       ", tail: " + str(self.dataset.tail) + \
+            #       " timing: " + str(end - start))
+
+            ## Remember which file was read just now.
+            #self.file_index += 1
+            #if self.file_index == self.dataset.num_local_files:
+            #    self.file_index = 0
 
 if __name__ == "__main__":
     args = get_parser()
@@ -259,18 +166,30 @@ if __name__ == "__main__":
 
     lock = mp.Lock()
     cv = mp.Condition(lock = lock)
+    num_files_in_cache = mp.Value('i')
+    finish = mp.Value('i')
+    buffer_index = mp.Value('i')
 
     train_dataset = cosmoflow_keras("test.yaml", batch_size = args.batch_size, mode = 'train',
+                                    num_files_in_cache = num_files_in_cache,
+                                    buffer_index = buffer_index,
+                                    finish = finish,
                                     rank = hvd.rank(),
                                     lock = lock,
                                     cv = cv)
     valid_dataset = cosmoflow_keras("test.yaml", batch_size = args.batch_size, mode = 'valid',
+                                    num_files_in_cache = num_files_in_cache,
+                                    buffer_index = buffer_index,
+                                    finish = finish,
                                     rank = hvd.rank(),
                                     lock = lock,
                                     cv = cv)
 
-    io_process = Process(target = io_thread, args = (train_dataset.num_files_in_cache, train_dataset.finish, hvd.rank(), lock, cv))
+    daemon = io_daemon(hvd.rank(), train_dataset, valid_dataset)
+    
+    io_process = Process(target = daemon.run, args = (num_files_in_cache, buffer_index, finish, hvd.rank(), lock, cv))
     io_process.start()
+
     # NOTE: have no idea why but it hangs when tf_thread is created as Process.
     # So, let's just call it instead of making a separate process.
     tf_thread(train_dataset, valid_dataset)

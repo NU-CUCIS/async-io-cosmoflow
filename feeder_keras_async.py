@@ -16,12 +16,15 @@ from tensorflow.keras.utils import Sequence
 from mpi4py import MPI
 
 class cosmoflow_keras (Sequence):
-    def __init__ (self, yaml_file, batch_size = 8, mode = 'train', rank = 0, lock = None, cv = None):
+    def __init__ (self, yaml_file, batch_size = 8, mode = 'train',
+                  num_files_in_cache = None, buffer_index = None, finish = None,
+                  rank = 0, lock = None, cv = None):
         self.comm = MPI.COMM_WORLD
         self.size = self.comm.Get_size()
 
-        self.num_files_in_cache = mp.Value('i') 
-        self.finish = mp.Value('i') 
+        self.num_files_in_cache = num_files_in_cache
+        self.buffer_index = buffer_index
+        self.finish = finish
         self.finish.value = 0
         self.batch_size = batch_size
         self.rank = rank
@@ -124,7 +127,7 @@ class cosmoflow_keras (Sequence):
         self.cv.notify()
         self.lock.release()
         t = time.time()
-        print ("R" + str(self.rank) + " okay, go ahead (num_files: " + str(self.num_files_in_cache.value) + ") at " + str(t))
+        print ("R" + str(self.rank) + " okay, go ahead (num_files: " + str(self.num_files_in_cache.value) + ") buffer_index: " + str(self.buffer_index.value) + " at " + str(t))
 
         # If num_cached_batches is 0 and went through the above wait(),
         # it means that a new file has been loaded by the reader.
