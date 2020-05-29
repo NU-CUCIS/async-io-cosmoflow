@@ -115,17 +115,22 @@ class io_daemon:
         We will work on it later.
         '''
         while 1:
-            lock.acquire()
-            if finish.value == 1:
-                print ("R" + str(rank) + " Okay i will go die...")
-                break
-            lock.release()
+            #lock.acquire()
+            #if finish.value == 1:
+            #    print ("R" + str(rank) + " Okay i will go die...")
+            #    break
+            #lock.release()
 
-            # Read a new file.
+            # Read a new file if any buffer is empty.
             if num_files_in_cache.value < 2:
+                # Choose a file to read.
                 file_index = self.shuffled_index[self.file_index + self.train_dataset.offset]
+
+                # Choose the buffer to fill in.
                 write_index = (self.prev_write_index + 1) % 2
                 self.prev_write_index = write_index
+
+                # Read a file.
                 start = time.time()
                 f = h5py.File(self.train_dataset.files[file_index], 'r')
                 self.cached_data[write_index] = f['3Dmap'][:]
@@ -138,6 +143,10 @@ class io_daemon:
 
             # Update the shared status varaibles.
             lock.acquire()
+            if finish.value == 1:
+                print ("R" + str(rank) + " Okay i will go die...")
+                break
+
             if num_files_in_cache.value < 2:
                 num_files_in_cache.value += 1
                 self.file_index += 1
