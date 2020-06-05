@@ -36,7 +36,8 @@ def get_parser():
     args = parser.parse_args()
     return args
 
-def tf_thread (train_dataset, valid_dataset):
+def tf_thread (train_dataset, valid_dataset, num_epochs = 1):
+    hvd.init()
     gpus = tf.config.experimental.list_physical_devices('GPU')
     for gpu in gpus:
         tf.config.experimental.set_memory_growth(gpu, True)
@@ -47,7 +48,6 @@ def tf_thread (train_dataset, valid_dataset):
     cosmo_model = model()
 
     # Perform the training.
-    num_epochs = 1
     checkpoint_dir = "./checkpoint"
     compiled_model = cosmo_model.build_model()
     compiled_model.summary()
@@ -57,8 +57,8 @@ def tf_thread (train_dataset, valid_dataset):
     opt = Adam(lr = 1e-4)
     opt = hvd.DistributedOptimizer(opt)
     checkpoint = tf.train.Checkpoint(epoch = tf.Variable(0),
-                                          model = compiled_model,
-                                          optimizer = opt)
+                                     model = compiled_model,
+                                     optimizer = opt)
     checkpoint_manager = tf.train.CheckpointManager(checkpoint = checkpoint,
                                                     directory = checkpoint_dir,
                                                     max_to_keep = 3)
@@ -68,6 +68,7 @@ def tf_thread (train_dataset, valid_dataset):
         hvd.callbacks.BroadcastGlobalVariablesCallback(0)
     ]
     t1 = time.time()
+    print ("R" + str(hvd.rank()) + " fit starts at " + str(t1))
     checkpoint.model.fit(train_dataset,
                          shuffle = False,
                          callbacks = callbacks,
@@ -82,7 +83,8 @@ def tf_thread (train_dataset, valid_dataset):
     
 if __name__ == "__main__":
     args = get_parser()
-    hvd.init()
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
 
     data_per_file_size = 128 * 128 * 128 * 128 * 12
     label_per_file_size = 128 * 4
@@ -101,7 +103,7 @@ if __name__ == "__main__":
                                     num_files_in_cache = num_files_in_cache,
                                     buffer_index = buffer_index,
                                     finish = finish,
-                                    rank = hvd.rank(),
+                                    rank = rank,
                                     lock = lock,
                                     cv = cv,
                                     data0 = data0,
@@ -112,7 +114,7 @@ if __name__ == "__main__":
                                     num_files_in_cache = num_files_in_cache,
                                     buffer_index = buffer_index,
                                     finish = finish,
-                                    rank = hvd.rank(),
+                                    rank = rank,
                                     lock = lock,
                                     cv = cv,
                                     data0 = data0,
@@ -120,15 +122,22 @@ if __name__ == "__main__":
                                     data1 = data1,
                                     label1 = label1)
 
-    daemon = io_daemon(hvd.rank(), train_dataset, valid_dataset)
+    daemon = io_daemon(rank, train_dataset, valid_dataset)
     
-    io_process = mp.Process(target = daemon.run, args = (num_files_in_cache, buffer_index, finish, hvd.rank(), lock, cv, data0, label0, data1, label1))
+    io_process = mp.Process(target = daemon.run, args = (num_files_in_cache, buffer_index, finish, rank, lock, cv, data0, label0, data1, label1))
     io_process.start()
 
     # NOTE: have no idea why but it hangs when tf_thread is created as Process.
     # So, let's just call it instead of making a separate process.
-    tf_thread(train_dataset, valid_dataset)
+    comm.Barrier()
+    tf_thread(train_dataset, valid_dataset, args.epochs)
 
     train_dataset.finish.value = 1
     io_process.join()
+
+    name = "R" + str(rank) + "_comp_start.txt"
+    f = open(name, "a")
+    for i in range(train_dataset.index):
+        f.write(train_dataset.getitem_start[i])
+    f.close()
     print ("All done!")

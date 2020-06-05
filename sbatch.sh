@@ -1,6 +1,6 @@
 #!/bin/bash  -l
 
-#SBATCH -t 00:03:00
+#SBATCH -t 00:06:00
 #SBATCH --qos=regular
 #SBATCH --nodes=1
 #SBATCH --tasks-per-node=8

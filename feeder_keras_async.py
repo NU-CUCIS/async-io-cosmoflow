@@ -22,33 +22,28 @@ class cosmoflow_keras (Sequence):
                   data0 = None, label0 = None, data1 = None, label1 = None):
         self.comm = MPI.COMM_WORLD
         self.size = self.comm.Get_size()
-
         self.num_files_in_cache = num_files_in_cache
-        self.num_files_in_cache.value = 0
         self.buffer_index = buffer_index
-        self.buffer_index.value = 0
         self.finish = finish
-        self.finish.value = 0
         self.batch_size = batch_size
         self.rank = rank
         self.mode = mode
         self.rng = np.random.default_rng()
-        self.num_cached_batches = 0
-        self.file_index = 0
         self.lock = lock
         self.cv = cv
         self.data0 = data0
         self.label0 = label0
         self.data1 = data1
         self.label1 = label1
+        self.num_cached_batches = 0
+        self.file_index = 0
+        self.num_files_in_cache.value = 0
+        self.buffer_index.value = 0
+        self.finish.value = 0
         self.data_shape = (128, 128, 128, 128, 12)
         self.label_shape = (128, 4)
-
-        #self.num_files_to_keep = 1
-        #self.head = 0
-        #self.tail = 0
-        #self.cached_data = [None] * self.num_files_to_keep
-        #self.cached_label = [None] * self.num_files_to_keep
+        self.index = 0
+        self.getitem_start = np.zeros(100)
 
         # Parse the given yaml file and get the top dir and file names.
         with open (yaml_file, "r") as f:
@@ -127,6 +122,8 @@ class cosmoflow_keras (Sequence):
 
     def __getitem__(self, input_index = 0):
         # Check if there is a file in the memory buffer.
+        t = time.time()
+        self.getitem_start[self.index] = t
         self.lock.acquire()
         while self.num_files_in_cache.value == 0:
             t = time.time()
@@ -135,7 +132,7 @@ class cosmoflow_keras (Sequence):
         self.cv.notify()
         self.lock.release()
         t = time.time()
-        print ("R" + str(self.rank) + " okay, go ahead (num_files: " + str(self.num_files_in_cache.value) + ") buffer_index: " + str(self.buffer_index.value) + " at " + str(t))
+        print ("R" + str(self.rank) + " iter " + str(input_index.numpy()) + " okay, go ahead (num_files: " + str(self.num_files_in_cache.value) + ") buffer_index: " + str(self.buffer_index.value) + " at " + str(t))
 
         # If num_cached_batches is 0 and went through the above wait(),
         # it means that a new file has been loaded by the reader.
