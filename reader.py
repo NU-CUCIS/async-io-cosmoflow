@@ -47,16 +47,16 @@ class io_daemon:
 
             if finish.value == 1:
                 print ("R" + str(rank) + " Okay i will go die...after " + str(self.index) + " i/o operations")
-                name = "R" + str(rank) + "_io_start.txt"
-                f = open(name, "a")
-                for i in range (self.index):
-                    f.write(str(self.io_start[i]) + "\n")
-                f.close()
-                name = "R" + str(rank) + "_io_end.txt"
-                f = open(name, "a")
-                for i in range (self.index):
-                    f.write(str(self.io_end[i]) + "\n")
-                f.close()
+                #name = "R" + str(rank) + "_io_start.txt"
+                #f = open(name, "a")
+                #for i in range (self.index):
+                #    f.write(str(self.io_start[i]) + "\n")
+                #f.close()
+                #name = "R" + str(rank) + "_io_end.txt"
+                #f = open(name, "a")
+                #for i in range (self.index):
+                #    f.write(str(self.io_end[i]) + "\n")
+                #f.close()
                 break
             lock.release()
 
@@ -100,4 +100,4 @@ class io_daemon:
                     self.file_index = 0
             cv.notify()
             lock.release()
-            time.sleep(1)
+            time.sleep(0.1)

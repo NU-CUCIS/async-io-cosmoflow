@@ -132,7 +132,7 @@ class cosmoflow_keras (Sequence):
         self.cv.notify()
         self.lock.release()
         t = time.time()
-        print ("R" + str(self.rank) + " iter " + str(input_index.numpy()) + " okay, go ahead (num_files: " + str(self.num_files_in_cache.value) + ") buffer_index: " + str(self.buffer_index.value) + " at " + str(t))
+        print ("R" + str(self.rank) + " iter " + str(input_index) + " okay, go ahead (num_files: " + str(self.num_files_in_cache.value) + ") buffer_index: " + str(self.buffer_index.value) + " at " + str(t))
 
         # If num_cached_batches is 0 and went through the above wait(),
         # it means that a new file has been loaded by the reader.
