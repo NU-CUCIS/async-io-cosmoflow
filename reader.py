@@ -57,6 +57,7 @@ class io_daemon:
                 self.prev_write_index = write_index
 
                 # Read a file.
+                start = time.time()
                 f = h5py.File(self.train_dataset.files[file_index], 'r')
                 if write_index == 0:
                     data_np = np.frombuffer(data0, dtype = np.uint16).reshape(self.train_dataset.data_shape)
@@ -69,6 +70,7 @@ class io_daemon:
                     np.copyto(data_np, f['3Dmap'][:])
                     np.copyto(label_np, f['unitPar'][:])
                 f.close()
+                end = time.time()
                 print ("R" + str(rank) + " reads " + self.train_dataset.files[file_index] + \
                        " into buffer[" + str(write_index) + "] at " + str(start) + \
                        " i/o time: " + str(end - start))
