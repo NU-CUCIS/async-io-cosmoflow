@@ -43,7 +43,6 @@ class cosmoflow_keras (Sequence):
         self.data_shape = (128, 128, 128, 128, 12)
         self.label_shape = (128, 4)
         self.index = 0
-        self.getitem_start = np.zeros(100)
 
         # Parse the given yaml file and get the top dir and file names.
         with open (yaml_file, "r") as f:
@@ -113,8 +112,6 @@ class cosmoflow_keras (Sequence):
 
     def __getitem__(self, input_index = 0):
         # Check if there is a file in the memory buffer.
-        t = time.time()
-        self.getitem_start[self.index] = t
         self.lock.acquire()
         while self.num_files_in_cache.value == 0:
             t = time.time()

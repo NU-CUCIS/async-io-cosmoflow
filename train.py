@@ -134,10 +134,4 @@ if __name__ == "__main__":
 
     train_dataset.finish.value = 1
     io_process.join()
-
-    name = "R" + str(rank) + "_comp_start.txt"
-    f = open(name, "a")
-    for i in range(train_dataset.index):
-        f.write(train_dataset.getitem_start[i])
-    f.close()
     print ("All done!")
