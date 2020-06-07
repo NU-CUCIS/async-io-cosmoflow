@@ -99,7 +99,6 @@ class cosmoflow_keras (Sequence):
             self.num_batches = int(self.batches_per_file * self.num_local_files)
             print ("Number of training batches in the given " + str(self.num_local_files) +
                    " files: " + str(self.num_batches))
-            self.shuffle()
         else:
             self.num_batches = 0
             for file_path in self.files:
@@ -108,14 +107,6 @@ class cosmoflow_keras (Sequence):
             self.num_batches = int(self.num_batches / self.batch_size)
             print ("Number of validation batches in the given " + str(len(self.files)) +
                    " files: " + str(self.num_batches))
-
-    def shuffle (self):
-        # Shuffle the files.
-        self.shuffled_index = np.arange(len(self.files))
-        if self.rank == 0:
-            self.rng.shuffle(self.shuffled_index)
-        self.comm.Bcast(self.shuffled_index, root = 0) 
-        print ("R0 shuffled the files... the first file id is " + str(self.shuffled_index[0]))
 
     def __len__(self):
         return self.num_batches

@@ -25,9 +25,6 @@ class io_daemon:
         self.prev_write_index = -1
         self.data_buffer_size = 128 * 128 * 128 * 128 * 12
         self.label_buffer_size = 128 * 4
-        self.io_start = np.zeros(100)
-        self.io_end = np.zeros(100)
-        self.index = 0
 
         self.shuffle()
 
@@ -46,17 +43,7 @@ class io_daemon:
                 cv.wait()
 
             if finish.value == 1:
-                print ("R" + str(rank) + " Okay i will go die...after " + str(self.index) + " i/o operations")
-                #name = "R" + str(rank) + "_io_start.txt"
-                #f = open(name, "a")
-                #for i in range (self.index):
-                #    f.write(str(self.io_start[i]) + "\n")
-                #f.close()
-                #name = "R" + str(rank) + "_io_end.txt"
-                #f = open(name, "a")
-                #for i in range (self.index):
-                #    f.write(str(self.io_end[i]) + "\n")
-                #f.close()
+                print ("R" + str(rank) + " Okay i will go die...")
                 break
             lock.release()
 
@@ -70,8 +57,6 @@ class io_daemon:
                 self.prev_write_index = write_index
 
                 # Read a file.
-                start = time.time()
-                self.io_start[self.index] = start
                 f = h5py.File(self.train_dataset.files[file_index], 'r')
                 if write_index == 0:
                     data_np = np.frombuffer(data0, dtype = np.uint16).reshape(self.train_dataset.data_shape)
@@ -84,9 +69,6 @@ class io_daemon:
                     np.copyto(data_np, f['3Dmap'][:])
                     np.copyto(label_np, f['unitPar'][:])
                 f.close()
-                end = time.time()
-                self.io_end[self.index] = end
-                self.index += 1
                 print ("R" + str(rank) + " reads " + self.train_dataset.files[file_index] + \
                        " into buffer[" + str(write_index) + "] at " + str(start) + \
                        " i/o time: " + str(end - start))
