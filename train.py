@@ -1,137 +1,102 @@
-'''
-Sunwoo Lee
-<sunwoolee1.2014@u.northwestern.edu>
-
-Northwestern University
-'''
-import argparse
 import time
-import threading
-from tqdm import tqdm
-import numpy as np
-import h5py
-import horovod.tensorflow.keras as hvd
 import tensorflow as tf
-import multiprocessing as mp
-from mpi4py import MPI
+import horovod.tensorflow as hvd
+from tqdm import tqdm
 from tensorflow.keras.losses import MeanSquaredError
 from tensorflow.keras.metrics import Mean
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.optimizers.schedules import PiecewiseConstantDecay
-from feeder_tf import cosmoflow_tf
-from feeder_keras_async import cosmoflow_keras
-from model import model
-from reader import io_daemon
-#import horovod.tensorflow as hvd
-#from feeder_keras_sync import cosmoflow_keras
-#from feeder_tf import cosmoflow_tf
 
-def get_parser():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-b", "--batch_size", type = int, default = 8,
-                        help = "number of training samples for each mini-batch")
-    parser.add_argument("-e", "--epochs", type = int, default = 1,
-                        help = "number of epochs")
+class Trainer:
+    def __init__ (self, model, dataset = None, num_epochs = 1, checkpoint_dir = "./checkpoint", do_checkpoint = False):
+        self.num_epochs = num_epochs
+        self.dataset = dataset
+        self.model = model.build_model()
+        self.model.summary()
+        self.lr = PiecewiseConstantDecay(boundaries = [100],
+                                         values = [1e-4, 5e-5])
+        self.loss = MeanSquaredError()
+        self.opt = Adam(lr = 1e-4)
+        self.do_checkpoint = do_checkpoint
+        self.checkpoint = tf.train.Checkpoint(epoch = tf.Variable(0),
+                                              model = self.model,
+                                              optimizer = self.opt)
+        self.checkpoint_manager = tf.train.CheckpointManager(checkpoint = self.checkpoint,
+                                                             directory = checkpoint_dir,
+                                                             max_to_keep = 3)
+        #self.checkpoint.model.compile(optimizer = self.checkpoint.optimizer, loss = 'mse', experimental_run_tf_function = False)
+        self.checkpoint.model.compile(optimizer = self.checkpoint.optimizer, loss = 'mse')
+        self.resume()
 
-    args = parser.parse_args()
-    return args
+    def resume (self):
+        if self.checkpoint_manager.latest_checkpoint:
+            self.checkpoint.restore(self.checkpoint_manager.latest_checkpoint)
+            print ("Model restored from checkpoint at epoch " + str(self.checkpoint.epoch.numpy()))
 
-def tf_thread (train_dataset, valid_dataset, num_epochs = 1):
-    hvd.init()
-    gpus = tf.config.experimental.list_physical_devices('GPU')
-    for gpu in gpus:
-        tf.config.experimental.set_memory_growth(gpu, True)
-    if gpus:
-        tf.config.experimental.set_visible_devices(gpus[hvd.local_rank()], 'GPU')
+    @tf.function
+    def train_step (self, data, label):
+        with tf.GradientTape() as tape:
+            prediction = self.checkpoint.model(data, training = True)
+            loss = self.loss(label, prediction)
+        tape = hvd.DistributedGradientTape(tape)
+        gradients = tape.gradient(loss, self.checkpoint.model.trainable_variables)
+        self.checkpoint.optimizer.apply_gradients(zip(gradients, self.checkpoint.model.trainable_variables))
+        return loss
 
-    # Build a model.
-    cosmo_model = model()
+    def train (self):
+        train_dataset = self.dataset.train_dataset()
+        valid_dataset = self.dataset.valid_dataset()
 
-    # Perform the training.
-    checkpoint_dir = "./checkpoint"
-    compiled_model = cosmo_model.build_model()
-    compiled_model.summary()
-    lr = PiecewiseConstantDecay(boundaries = [100],
-                                values = [1e-4, 5e-5])
-    loss = MeanSquaredError()
-    opt = Adam(lr = 1e-4)
-    opt = hvd.DistributedOptimizer(opt)
-    checkpoint = tf.train.Checkpoint(epoch = tf.Variable(0),
-                                     model = compiled_model,
-                                     optimizer = opt)
-    checkpoint_manager = tf.train.CheckpointManager(checkpoint = checkpoint,
-                                                    directory = checkpoint_dir,
-                                                    max_to_keep = 3)
-    checkpoint.model.compile(optimizer = checkpoint.optimizer, loss = 'mse', experimental_run_tf_function = False)
+        for epoch_id in range(self.num_epochs):
+            self.checkpoint.epoch.assign_add(1)
+            self.dataset.train_file_index = 0
+            loss_mean = Mean()
+            self.start_time = time.perf_counter()
 
-    callbacks = [
-        hvd.callbacks.BroadcastGlobalVariablesCallback(0)
-    ]
-    t1 = time.time()
-    print ("R" + str(hvd.rank()) + " fit starts at " + str(t1))
-    checkpoint.model.fit(train_dataset,
-                         shuffle = False,
-                         callbacks = callbacks,
-                         max_queue_size = 1,
-                         epochs = num_epochs,
-                         workers=1, use_multiprocessing=False,  
-                         steps_per_epoch = train_dataset.num_batches)
-                         #validation_data = valid_dataset,
-                         #validation_steps = valid_dataset.num_batches)
-    t2 = time.time()
-    print ("fit took " + str(t2 - t1) + " and ended at " + str(t2))
-    
-if __name__ == "__main__":
-    args = get_parser()
-    comm = MPI.COMM_WORLD
-    rank = comm.Get_rank()
+            # Train the model.
+            for i in tqdm(range(self.dataset.num_train_batches)):
+                # I/O
+                data, label = train_dataset.next()
 
-    data_per_file_size = 128 * 128 * 128 * 128 * 12
-    label_per_file_size = 128 * 4
+                # Computation
+                loss = self.train_step(data, label)
+                loss_mean(loss)
 
-    lock = mp.Lock()
-    cv = mp.Condition(lock = lock)
-    num_files_in_cache = mp.Value('i')
-    finish = mp.Value('i')
-    buffer_index = mp.Value('i')
-    data0 = mp.RawArray('H', data_per_file_size)
-    label0 = mp.RawArray('f', label_per_file_size)
-    data1 = mp.RawArray('H', data_per_file_size)
-    label1 = mp.RawArray('f', label_per_file_size)
+                if epoch_id == 0 and i == 0:
+                    hvd.broadcast_variables(self.checkpoint.model.variables, root_rank=0)
+                    hvd.broadcast_variables(self.opt.variables(), root_rank=0)
 
-    train_dataset = cosmoflow_keras("test.yaml", batch_size = args.batch_size, mode = 'train',
-                                    num_files_in_cache = num_files_in_cache,
-                                    buffer_index = buffer_index,
-                                    finish = finish,
-                                    rank = rank,
-                                    lock = lock,
-                                    cv = cv,
-                                    data0 = data0,
-                                    label0 = label0,
-                                    data1 = data1,
-                                    label1 = label1)
-    valid_dataset = cosmoflow_keras("test.yaml", batch_size = args.batch_size, mode = 'valid',
-                                    num_files_in_cache = num_files_in_cache,
-                                    buffer_index = buffer_index,
-                                    finish = finish,
-                                    rank = rank,
-                                    lock = lock,
-                                    cv = cv,
-                                    data0 = data0,
-                                    label0 = label0,
-                                    data1 = data1,
-                                    label1 = label1)
+            timing = time.perf_counter() - self.start_time
+            train_loss = loss_mean.result()
+            loss_mean.reset_states()
 
-    daemon = io_daemon(rank, train_dataset, valid_dataset)
-    
-    io_process = mp.Process(target = daemon.run, args = (num_files_in_cache, buffer_index, finish, rank, lock, cv, data0, label0, data1, label1))
-    io_process.start()
+            if hvd.rank() == 0 and self.do_checkpoint == True:
+                self.checkpoint_manager.save()
+            self.dataset.shuffle()
 
-    # NOTE: have no idea why but it hangs when tf_thread is created as Process.
-    # So, let's just call it instead of making a separate process.
-    comm.Barrier()
-    tf_thread(train_dataset, valid_dataset, args.epochs)
+            # Evaluate the current model using the validation data.
+            #print ("Evaluating the current model using " + str(self.dataset.num_valid_batches) + " validation batches.")
+            #valid_loss = self.evaluate(valid_dataset, self.dataset.num_valid_batches)
 
-    train_dataset.finish.value = 1
-    io_process.join()
-    print ("All done!")
+            print ("Epoch " + str(self.checkpoint.epoch.numpy()) +\
+                   " training loss = " + str(train_loss.numpy()) +\
+                   #" validation loss = " + str(valid_loss.numpy()) +\
+                   " training timing: " + str(timing) + " sec")
+
+            # Write the loss values to the output files.
+            #f = open("loss-train.txt", "a")
+            #f.write(str(train_loss.numpy()) + "\n")
+            #f.close()
+            #f = open("loss-valid.txt", "a")
+            #f.write(str(valid_loss.numpy()) + "\n")
+            #f.close()
+
+    def evaluate (self, dataset, num_valid_batches):
+        self.dataset.valid_file_index = 0
+        loss_mean = Mean()
+        for i in tqdm(range(num_valid_batches)):
+            data, label = dataset.next()
+            prediction = self.checkpoint.model(data)
+            loss = self.loss(label, prediction)
+            loss_mean(loss)
+        return loss_mean.result()

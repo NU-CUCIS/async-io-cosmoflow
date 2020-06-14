@@ -39,7 +39,8 @@ class io_daemon:
     def run (self, num_files_in_cache, buffer_index, finish, rank, lock, cv, data0, label0, data1, label1):
         while 1:
             lock.acquire()
-            while finish.value == 0 and num_files_in_cache.value == 2:
+            #while finish.value == 0 and num_files_in_cache.value == 2:
+            while finish.value == 0 and num_files_in_cache.value == 1:
                 cv.wait()
 
             if finish.value == 1:
@@ -48,13 +49,15 @@ class io_daemon:
             lock.release()
 
             # Read a new file if any buffer is empty.
-            if num_files_in_cache.value < 2:
+            #if num_files_in_cache.value < 2:
+            if num_files_in_cache.value < 1:
                 # Choose a file to read.
                 file_index = self.shuffled_index[self.file_index + self.train_dataset.offset]
 
                 # Choose the buffer to fill in.
-                write_index = (self.prev_write_index + 1) % 2
-                self.prev_write_index = write_index
+                #write_index = (self.prev_write_index + 1) % 2
+                #self.prev_write_index = write_index
+                write_index = 0
 
                 # Read a file.
                 start = time.time()

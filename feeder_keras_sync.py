@@ -100,13 +100,15 @@ class cosmoflow_keras (Sequence):
         # Shuffle the files.
         self.shuffled_index = np.arange(len(self.files))
         self.rng.shuffle(self.shuffled_index)
+        self.comm.Bcast(self.shuffled_index, root = 0) 
+        print ("R0 shuffled the files... the first file id is " + str(self.shuffled_index[0]))
 
     def __len__(self):
         return self.num_batches
 
     def __getitem__(self, input_index = 0):
         # Read a new file if there are no cached batches.
-        print ("input_index: " + str(input_index) + " and now " + str(self.num_cached_batches) + " batches are in queue.")
+        #print ("input_index: " + str(input_index) + " and now " + str(self.num_cached_batches) + " batches are in queue.")
         t = time.time()
         print ("R" + str(self.rank) + " getitem at " + str(t))
         if self.num_cached_batches == 0:
@@ -139,8 +141,7 @@ class cosmoflow_keras (Sequence):
             else:
                 self.batch_list = np.arange(self.num_cached_batches)
             end = time.time()
-            print ("[" + str(input_index) + "] cached: [" + str(self.num_cached_batches) +\
-                   "] i/o: " + str(end - start) + " reading " + self.files[file_index])
+            print ("R" + str(self.rank) + " i/o: " + str(end - start) + " read " + self.files[file_index] + " at " + str(end))
 
         # Get a mini-batch from the memory buffer.
         self.num_cached_batches -= 1

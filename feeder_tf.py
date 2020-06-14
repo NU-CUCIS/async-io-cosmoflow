@@ -10,9 +10,13 @@ import tensorflow as tf
 import yaml
 import numpy as np
 import h5py
+from mpi4py import MPI
 
 class cosmoflow_tf:
     def __init__ (self, yaml_file, batch_size = 4):
+        self.comm = MPI.COMM_WORLD
+        self.size = self.comm.Get_size()
+        self.rank = self.comm.Get_rank()
         self.batch_size = batch_size
         self.rng = np.random.default_rng()
         self.num_cached_train_batches = 0
@@ -66,8 +70,9 @@ class cosmoflow_tf:
             for file_path in self.valid_files:
                 print (file_path)
 
-        self.num_train_batches = int(self.batches_per_file * len(self.train_files))
-        print ("Number of training batches in the given " + str(len(self.train_files)) +
+        num_local_files = int(len(self.train_files) / self.size)
+        self.num_train_batches = int(self.batches_per_file * num_local_files)
+        print ("Number of training batches in the given " + str(num_local_files) +
                " files: " + str(self.num_train_batches))
 
         self.num_valid_batches = 0
