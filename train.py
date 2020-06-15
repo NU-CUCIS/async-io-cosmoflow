@@ -1,5 +1,11 @@
+'''
+Sunwoo Lee
+<sunwoolee1.2014@u.northwestern.edu>
+Northwestern University
+'''
 import time
 import tensorflow as tf
+import multiprocessing as mp
 import horovod.tensorflow as hvd
 from tqdm import tqdm
 from tensorflow.keras.losses import MeanSquaredError
