@@ -15,6 +15,14 @@ from tensorflow.keras.optimizers.schedules import PiecewiseConstantDecay
 
 class Trainer:
     def __init__ (self, model, dataset = None, num_epochs = 1, checkpoint_dir = "./checkpoint", do_checkpoint = False):
+        # Initialize Horovod.tensorflow.
+        #hvd.init()
+        #gpus = tf.config.experimental.list_physical_devices('GPU')
+        #for gpu in gpus:
+        #    tf.config.experimental.set_memory_growth(gpu, True)
+        #if gpus:
+        #    tf.config.experimental.set_visible_devices(gpus[hvd.local_rank()], 'GPU')
+
         self.num_epochs = num_epochs
         self.dataset = dataset
         self.model = model.build_model()

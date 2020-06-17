@@ -42,20 +42,33 @@ if __name__ == "__main__":
     lock = mp.Lock()
     cv = mp.Condition(lock = lock)
     finish = mp.Value('i')
+    num_cached_files = mp.Value('i')
+    finish.value = 0
+    num_cached_files.value = 0
+    data_per_file_size = 128 * 128 * 128 * 128 * 12
+    label_per_file_size = 128 * 4
+    data0 = mp.RawArray('H', data_per_file_size)
+    label0 = mp.RawArray('f', label_per_file_size)
+    data1 = mp.RawArray('H', data_per_file_size)
+    label1 = mp.RawArray('f', label_per_file_size)
 
     # Initialize model, dataset, and trainer.
     cosmo_model = model()
-    dataset = cosmoflow_tf("test.yaml", lock, cv, batch_size = args.batch_size)
+    dataset = cosmoflow_tf("test.yaml", lock, cv, num_cached_files, batch_size = args.batch_size)
     trainer = Trainer(cosmo_model, dataset, args.epochs, do_checkpoint = args.checkpoint)
 
     # Initialize the I/O daemon.
     async_io_module = IOdaemon(dataset)
-    io_process = mp.Process(target = async_io_module.run, args = (lock, cv, finish))
+    io_process = mp.Process(target = async_io_module.run, args = (lock, cv, finish, num_cached_files,
+                                                                  data0, data1, label0, label1))
     io_process.start()
 
     # Start the training.
     trainer.train()
 
-    train_dataset.finish.value = 1
+    lock.acquire()
+    finish.value = 1
+    cv.notify()
+    lock.release()
     io_process.join()
     print ("All done!")

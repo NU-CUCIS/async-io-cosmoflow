@@ -13,12 +13,13 @@ import h5py
 from mpi4py import MPI
 
 class cosmoflow_tf:
-    def __init__ (self, yaml_file, lock, cv, batch_size = 4):
+    def __init__ (self, yaml_file, lock, cv, num_cached_files, batch_size = 4):
         self.comm = MPI.COMM_WORLD
         self.size = self.comm.Get_size()
         self.rank = self.comm.Get_rank()
         self.lock = lock
         self.cv = cv
+        self.num_cached_files = num_cached_files
         self.batch_size = batch_size
         self.rng = np.random.default_rng()
         self.num_cached_train_batches = 0
