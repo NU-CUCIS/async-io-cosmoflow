@@ -70,12 +70,12 @@ class IOdaemon:
 
             # Update the shared status.
             lock.acquire()
-            if num_cached_files.value < 2:
+            if num_cached_files.value < num_buffers:
                 num_cached_files.value += 1
                 self.file_index += 1
                 if self.file_index == self.num_local_files:
                     self.file_index = 0
             cv.notify()
-            while finish.value == 0 and num_cached_files.value == 2:
+            while finish.value == 0 and num_cached_files.value == num_buffers:
                 cv.wait()
             lock.release()
