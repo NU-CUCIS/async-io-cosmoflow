@@ -47,7 +47,7 @@ class IOdaemon:
                 print ("R" + str(self.rank) + " Okay, I/O process will terminates...")
                 break
 
-            if num_cached_files.value < 2:
+            if num_cached_files.value < num_buffers:
                 # Choose a file to read.
                 file_index = self.shuffled_index[self.file_index + self.offset]
 
