@@ -13,7 +13,10 @@ import h5py
 from mpi4py import MPI
 
 class cosmoflow_tf:
-    def __init__ (self, yaml_file, lock, cv, num_cached_files, data, label, batch_size = 4):
+    def __init__ (self, yaml_file, lock, cv,
+                  num_cached_files,
+                  data, label, num_samples,
+                  batch_size = 4):
         self.comm = MPI.COMM_WORLD
         self.size = self.comm.Get_size()
         self.rank = self.comm.Get_rank()
@@ -22,6 +25,7 @@ class cosmoflow_tf:
         self.num_cached_files = num_cached_files
         self.data = data
         self.label = label
+        self.num_samples = num_samples
         self.num_buffers = len(data)
         self.batch_size = batch_size
         self.read_index = 0
@@ -113,8 +117,15 @@ class cosmoflow_tf:
         # Because a new file has been loaded, let's update the
         # number of batches in the buffer.
         if self.num_cached_train_batches == 0:
-            self.num_cached_train_batches = int(128 / self.batch_size)
-            self.batch_list = np.arange(self.num_cached_train_batches)
+            num_samples = self.num_samples[self.read_index].value
+            self.num_cached_train_batches = int(num_samples / self.batch_size)
+
+            self.batch_list = np.arange(self.samples_per_file)
+            # In case the file contains fewer samples than 128,
+            # fill in the memory buffer with the first samples.
+            if self.num_cached_train_batches < self.samples_per_file:
+                for i in range(self.num_cached_train_batches, self.samples_per_file):
+                    self.batch_list[i] = i % self.num_cached_train_batches
             self.rng.shuffle(self.batch_list)
 
         self.num_cached_train_batches -= 1

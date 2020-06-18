@@ -37,7 +37,7 @@ class IOdaemon:
         self.comm.Bcast(self.shuffled_index, root = 0) 
         print ("R" + str(self.rank) + " shuffled the files... the first file ID is " + str(self.shuffled_index[0]))
 
-    def run (self, lock, cv, finish, num_cached_files, data, label):
+    def run (self, lock, cv, finish, num_cached_files, data, label, num_samples):
         num_cached_files.value = 0
         prev_write_index = -1
         num_buffers = len(data)
@@ -58,10 +58,16 @@ class IOdaemon:
                 # Read a file into the chosen buffer.
                 start = time.time()
                 f = h5py.File(self.dataset.train_files[file_index], 'r')
+
+                num_samples[write_index].value = f['3Dmap'].shape[0]
+                length = num_samples[write_index].value
+
+                # Find the shape of the data and label.
                 data_np = np.frombuffer(data[write_index], dtype = np.uint16).reshape(self.data_shape)
+                np.copyto(data_np[0:length], f['3Dmap'][:])
                 label_np = np.frombuffer(label[write_index], dtype = np.float32).reshape(self.label_shape)
-                np.copyto(data_np, f['3Dmap'][:])
-                np.copyto(label_np, f['unitPar'][:])
+                np.copyto(label_np[0:length], f['unitPar'][:])
+
                 f.close()
                 end = time.time()
                 print ("R" + str(self.rank) + " reads " + self.dataset.train_files[file_index] + \

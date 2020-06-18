@@ -43,8 +43,10 @@ if __name__ == "__main__":
     cv = mp.Condition(lock = lock)
     finish = mp.Value('i')
     num_cached_files = mp.Value('i')
+    num_cached_samples = mp.Value('i')
     finish.value = 0
     num_cached_files.value = 0
+    num_cached_samples.value = 0
     data_buffer_size = 128 * 128 * 128 * 128 * 12
     label_buffer_size = 128 * 4
     if args.overlap == 0:
@@ -54,14 +56,17 @@ if __name__ == "__main__":
 
     data = []
     label = []
+    num_samples = []
     for i in range(num_buffers):
         data.append(mp.RawArray('H', data_buffer_size))
         label.append(mp.RawArray('f', label_buffer_size))
+        num_samples.append(mp.Value('i'))
 
     # Initialize model, dataset, and trainer.
     cosmo_model = model()
     dataset = cosmoflow_tf("test.yaml", lock, cv,
-                           num_cached_files, data, label,
+                           num_cached_files,
+                           data, label, num_samples,
                            batch_size = args.batch_size)
     trainer = Trainer(cosmo_model, dataset, args.epochs, do_checkpoint = args.checkpoint)
 
@@ -69,7 +74,7 @@ if __name__ == "__main__":
     async_io_module = IOdaemon(dataset)
     io_process = mp.Process(target = async_io_module.run, args = (lock, cv, finish,
                                                                   num_cached_files,
-                                                                  data, label))
+                                                                  data, label, num_samples))
     io_process.start()
 
     # Start the training.
