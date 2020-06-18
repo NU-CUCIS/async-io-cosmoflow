@@ -17,7 +17,7 @@ def get_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("-b", "--batch_size", type = int, default = 8,
                         help = "number of training samples for each mini-batch")
-    parser.add_argument("-o", "--overlap", type = int, default = 0,
+    parser.add_argument("-o", "--overlap", type = int, default = 1,
                         help = "0: do not overlap I/O with computation, 1: overlap I/O with computation")
     parser.add_argument("-c", "--checkpoint", type = int, default = 0,
                         help = "0: do not checkpoint the model, 1: checkpoint the model")
@@ -45,25 +45,31 @@ if __name__ == "__main__":
     num_cached_files = mp.Value('i')
     finish.value = 0
     num_cached_files.value = 0
-    data_per_file_size = 128 * 128 * 128 * 128 * 12
-    label_per_file_size = 128 * 4
-    data0 = mp.RawArray('H', data_per_file_size)
-    label0 = mp.RawArray('f', label_per_file_size)
-    data1 = mp.RawArray('H', data_per_file_size)
-    label1 = mp.RawArray('f', label_per_file_size)
+    data_buffer_size = 128 * 128 * 128 * 128 * 12
+    label_buffer_size = 128 * 4
+    if args.overlap == 0:
+        num_buffers = 1
+    else:
+        num_buffers = 2
+
+    data = []
+    label = []
+    for i in range(num_buffers):
+        data.append(mp.RawArray('H', data_buffer_size))
+        label.append(mp.RawArray('f', label_buffer_size))
 
     # Initialize model, dataset, and trainer.
     cosmo_model = model()
     dataset = cosmoflow_tf("test.yaml", lock, cv,
-                           num_cached_files,
-                           data0, data1, label0, label1,
+                           num_cached_files, data, label,
                            batch_size = args.batch_size)
     trainer = Trainer(cosmo_model, dataset, args.epochs, do_checkpoint = args.checkpoint)
 
     # Initialize the I/O daemon.
     async_io_module = IOdaemon(dataset)
-    io_process = mp.Process(target = async_io_module.run, args = (lock, cv, finish, num_cached_files,
-                                                                  data0, data1, label0, label1))
+    io_process = mp.Process(target = async_io_module.run, args = (lock, cv, finish,
+                                                                  num_cached_files,
+                                                                  data, label))
     io_process.start()
 
     # Start the training.

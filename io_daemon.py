@@ -37,9 +37,11 @@ class IOdaemon:
         self.comm.Bcast(self.shuffled_index, root = 0) 
         print ("R" + str(self.rank) + " shuffled the files... the first file ID is " + str(self.shuffled_index[0]))
 
-    def run (self, lock, cv, finish, num_cached_files, data0, data1, label0, label1):
+    def run (self, lock, cv, finish, num_cached_files, data, label):
         num_cached_files.value = 0
         prev_write_index = -1
+        num_buffers = len(data)
+        print ("Number of buffers: " + str(num_buffers))
         while 1:
             if finish.value == 1:
                 print ("R" + str(self.rank) + " Okay, I/O process will terminates...")
@@ -50,22 +52,16 @@ class IOdaemon:
                 file_index = self.shuffled_index[self.file_index + self.offset]
 
                 # Choose a buffer to fill in.
-                write_index = (prev_write_index + 1) % 2
+                write_index = (prev_write_index + 1) % num_buffers
                 prev_write_index = write_index
 
                 # Read a file into the chosen buffer.
                 start = time.time()
                 f = h5py.File(self.dataset.train_files[file_index], 'r')
-                if write_index == 0:
-                    data_np = np.frombuffer(data0, dtype = np.uint16).reshape(self.data_shape)
-                    label_np = np.frombuffer(label0, dtype = np.float32).reshape(self.label_shape)
-                    np.copyto(data_np, f['3Dmap'][:])
-                    np.copyto(label_np, f['unitPar'][:])
-                else:
-                    data_np = np.frombuffer(data1, dtype = np.uint16).reshape(self.data_shape)
-                    label_np = np.frombuffer(label1, dtype = np.float32).reshape(self.label_shape)
-                    np.copyto(data_np, f['3Dmap'][:])
-                    np.copyto(label_np, f['unitPar'][:])
+                data_np = np.frombuffer(data[write_index], dtype = np.uint16).reshape(self.data_shape)
+                label_np = np.frombuffer(label[write_index], dtype = np.float32).reshape(self.label_shape)
+                np.copyto(data_np, f['3Dmap'][:])
+                np.copyto(label_np, f['unitPar'][:])
                 f.close()
                 end = time.time()
                 print ("R" + str(self.rank) + " reads " + self.dataset.train_files[file_index] + \

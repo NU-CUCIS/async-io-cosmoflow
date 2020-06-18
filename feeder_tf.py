@@ -13,17 +13,16 @@ import h5py
 from mpi4py import MPI
 
 class cosmoflow_tf:
-    def __init__ (self, yaml_file, lock, cv, num_cached_files, data0, data1, label0, label1, batch_size = 4):
+    def __init__ (self, yaml_file, lock, cv, num_cached_files, data, label, batch_size = 4):
         self.comm = MPI.COMM_WORLD
         self.size = self.comm.Get_size()
         self.rank = self.comm.Get_rank()
         self.lock = lock
         self.cv = cv
         self.num_cached_files = num_cached_files
-        self.data0 = data0
-        self.data1 = data1
-        self.label0 = label0
-        self.label1 = label1
+        self.data = data
+        self.label = label
+        self.num_buffers = len(data)
         self.batch_size = batch_size
         self.read_index = 0
         self.rng = np.random.default_rng()
@@ -121,16 +120,10 @@ class cosmoflow_tf:
         self.num_cached_train_batches -= 1
         index = self.batch_list[self.num_cached_train_batches]
 
-        if self.read_index == 0:
-            data_np = np.frombuffer(self.data0, dtype = np.uint16).reshape(self.data_shape)
-            label_np = np.frombuffer(self.label0, dtype = np.float32).reshape(self.label_shape)
-            images = data_np[index:index + self.batch_size]
-            labels = label_np[index:index + self.batch_size]
-        else:
-            data_np = np.frombuffer(self.data1, dtype = np.uint16).reshape(self.data_shape)
-            label_np = np.frombuffer(self.label1, dtype = np.float32).reshape(self.label_shape)
-            images = data_np[index:index + self.batch_size]
-            labels = label_np[index:index + self.batch_size]
+        data_np = np.frombuffer(self.data[self.read_index], dtype = np.uint16).reshape(self.data_shape)
+        label_np = np.frombuffer(self.label[self.read_index], dtype = np.float32).reshape(self.label_shape)
+        images = data_np[index:index + self.batch_size]
+        labels = label_np[index:index + self.batch_size]
 
         # If the current batch is the last batch of the file,
         # Update the read_index and let I/O module know it.
@@ -138,37 +131,10 @@ class cosmoflow_tf:
             self.lock.acquire()
             self.num_cached_files.value -= 1
             self.read_index += 1
-            if self.read_index == 2:
+            if self.read_index == self.num_buffers:
                 self.read_index = 0
             self.cv.notify()
             self.lock.release()
-        # Read a new file if there are no cached batches.
-        #if self.num_cached_train_batches == 0:
-        #    file_index = self.shuffled_index[self.train_file_index]
-        #    f = h5py.File(self.train_files[file_index], 'r')
-        #    self.train_file_index += 1
-        #    if self.train_file_index == len(self.train_files):
-        #        self.train_file_index = 0
-        #    self.images = f['3Dmap'][:]
-        #    self.labels = f['unitPar'][:]
-        #    f.close()
-        #    self.num_cached_train_batches = int(self.images.shape[0] / self.batch_size)
-
-        #    # Some files have fewer samples than 128.
-        #    if self.num_cached_train_batches < self.batches_per_file:
-        #        self.batch_list = np.arange(self.batches_per_file)
-        #        for i in range(self.num_cached_train_batches, self.batches_per_file):
-        #            self.batch_list[i] = (i % self.num_cached_train_batches)
-        #        self.num_cached_train_batches = self.batches_per_file
-        #    else:
-        #        self.batch_list = np.arange(self.num_cached_train_batches)
-        #    self.rng.shuffle(self.batch_list)
-
-        # Get a mini-batch from the memory buffer.
-        #self.num_cached_train_batches -= 1
-        #index = self.batch_list[self.num_cached_train_batches]
-        #images = self.images[index : index + self.batch_size]
-        #labels = self.labels[index : index + self.batch_size]
         return images, labels
 
     def read_valid_samples (self, batch_id):
