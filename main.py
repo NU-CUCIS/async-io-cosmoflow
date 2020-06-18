@@ -54,7 +54,10 @@ if __name__ == "__main__":
 
     # Initialize model, dataset, and trainer.
     cosmo_model = model()
-    dataset = cosmoflow_tf("test.yaml", lock, cv, num_cached_files, batch_size = args.batch_size)
+    dataset = cosmoflow_tf("test.yaml", lock, cv,
+                           num_cached_files,
+                           data0, data1, label0, label1,
+                           batch_size = args.batch_size)
     trainer = Trainer(cosmo_model, dataset, args.epochs, do_checkpoint = args.checkpoint)
 
     # Initialize the I/O daemon.

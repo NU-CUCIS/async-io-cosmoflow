@@ -21,7 +21,7 @@ ulimit -c unlimited
 
 cd /global/homes/s/slz839/cosmo/tf2-cosmoflow
 #srun -n 1 -c 80 python3 main.py --epochs=3 --batch_size=16
-srun -n 8 -c 10 python3 main.py --epochs=1 --batch_size=2
+srun -n 8 -c 10 python3 main.py --epochs=3 --batch_size=2
 
 #module unload gcc/8.3.0
 #module unload cuda/10.1.243

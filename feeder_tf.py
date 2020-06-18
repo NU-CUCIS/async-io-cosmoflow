@@ -13,19 +13,26 @@ import h5py
 from mpi4py import MPI
 
 class cosmoflow_tf:
-    def __init__ (self, yaml_file, lock, cv, num_cached_files, batch_size = 4):
+    def __init__ (self, yaml_file, lock, cv, num_cached_files, data0, data1, label0, label1, batch_size = 4):
         self.comm = MPI.COMM_WORLD
         self.size = self.comm.Get_size()
         self.rank = self.comm.Get_rank()
         self.lock = lock
         self.cv = cv
         self.num_cached_files = num_cached_files
+        self.data0 = data0
+        self.data1 = data1
+        self.label0 = label0
+        self.label1 = label1
         self.batch_size = batch_size
+        self.read_index = 0
         self.rng = np.random.default_rng()
         self.num_cached_train_batches = 0
         self.num_cached_valid_batches = 0
         self.train_file_index = 0
         self.valid_file_index = 0
+        self.data_shape = (128, 128, 128, 128, 12)
+        self.label_shape = (128, 4)
 
         # Parse the given yaml file and get the top dir and file names.
         with open (yaml_file, "r") as f:
@@ -94,39 +101,74 @@ class cosmoflow_tf:
         self.rng.shuffle(self.shuffled_index)
 
     def read_train_samples (self, batch_id):
-        # Read a new file if there are no cached batches.
+        self.lock.acquire()
+        while self.num_cached_files.value == 0:
+            t = time.time()
+            print ("R" + str(self.rank) + " okay, getitem will wait... at " + str(t))
+            self.cv.wait()
+        self.cv.notify()
+        self.lock.release()
+
+        # This condition is for the case where a file has been
+        # consumed in the previous iteration.
+        # Because a new file has been loaded, let's update the
+        # number of batches in the buffer.
         if self.num_cached_train_batches == 0:
-            start = time.time()
-            file_index = self.shuffled_index[self.train_file_index]
-            f = h5py.File(self.train_files[file_index], 'r')
-            self.train_file_index += 1
-            if self.train_file_index == len(self.train_files):
-                self.train_file_index = 0
-            self.images = f['3Dmap'][:]
-            self.labels = f['unitPar'][:]
-            f.close()
-            self.num_cached_train_batches = int(self.images.shape[0] / self.batch_size)
-
-            # Some files have fewer samples than 128.
-            if self.num_cached_train_batches < self.batches_per_file:
-                self.batch_list = np.arange(self.batches_per_file)
-                for i in range(self.num_cached_train_batches, self.batches_per_file):
-                    self.batch_list[i] = (i % self.num_cached_train_batches)
-                self.num_cached_train_batches = self.batches_per_file
-            else:
-                self.batch_list = np.arange(self.num_cached_train_batches)
+            self.num_cached_train_batches = int(128 / self.batch_size)
+            self.batch_list = np.arange(self.num_cached_train_batches)
             self.rng.shuffle(self.batch_list)
-            end = time.time()
-            print ("i/o: " + str(end - start))
-            self.lock.acquire()
-            self.cv.notify()
-            self.lock.release()
 
-        # Get a mini-batch from the memory buffer.
         self.num_cached_train_batches -= 1
         index = self.batch_list[self.num_cached_train_batches]
-        images = self.images[index : index + self.batch_size]
-        labels = self.labels[index : index + self.batch_size]
+
+        if self.read_index == 0:
+            data_np = np.frombuffer(self.data0, dtype = np.uint16).reshape(self.data_shape)
+            label_np = np.frombuffer(self.label0, dtype = np.float32).reshape(self.label_shape)
+            images = data_np[index:index + self.batch_size]
+            labels = label_np[index:index + self.batch_size]
+        else:
+            data_np = np.frombuffer(self.data1, dtype = np.uint16).reshape(self.data_shape)
+            label_np = np.frombuffer(self.label1, dtype = np.float32).reshape(self.label_shape)
+            images = data_np[index:index + self.batch_size]
+            labels = label_np[index:index + self.batch_size]
+
+        # If the current batch is the last batch of the file,
+        # Update the read_index and let I/O module know it.
+        if self.num_cached_train_batches == 0:
+            self.lock.acquire()
+            self.num_cached_files.value -= 1
+            self.read_index += 1
+            if self.read_index == 2:
+                self.read_index = 0
+            self.cv.notify()
+            self.lock.release()
+        # Read a new file if there are no cached batches.
+        #if self.num_cached_train_batches == 0:
+        #    file_index = self.shuffled_index[self.train_file_index]
+        #    f = h5py.File(self.train_files[file_index], 'r')
+        #    self.train_file_index += 1
+        #    if self.train_file_index == len(self.train_files):
+        #        self.train_file_index = 0
+        #    self.images = f['3Dmap'][:]
+        #    self.labels = f['unitPar'][:]
+        #    f.close()
+        #    self.num_cached_train_batches = int(self.images.shape[0] / self.batch_size)
+
+        #    # Some files have fewer samples than 128.
+        #    if self.num_cached_train_batches < self.batches_per_file:
+        #        self.batch_list = np.arange(self.batches_per_file)
+        #        for i in range(self.num_cached_train_batches, self.batches_per_file):
+        #            self.batch_list[i] = (i % self.num_cached_train_batches)
+        #        self.num_cached_train_batches = self.batches_per_file
+        #    else:
+        #        self.batch_list = np.arange(self.num_cached_train_batches)
+        #    self.rng.shuffle(self.batch_list)
+
+        # Get a mini-batch from the memory buffer.
+        #self.num_cached_train_batches -= 1
+        #index = self.batch_list[self.num_cached_train_batches]
+        #images = self.images[index : index + self.batch_size]
+        #labels = self.labels[index : index + self.batch_size]
         return images, labels
 
     def read_valid_samples (self, batch_id):
