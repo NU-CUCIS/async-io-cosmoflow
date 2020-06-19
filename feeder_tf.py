@@ -108,8 +108,8 @@ class cosmoflow_tf:
         while self.num_cached_files.value == 0:
             t = time.time()
             print ("R" + str(self.rank) + " okay, getitem will wait... at " + str(t))
+            self.cv.notify()
             self.cv.wait()
-        self.cv.notify()
         self.lock.release()
 
         # This condition is for the case where a file has been
@@ -188,5 +188,5 @@ class cosmoflow_tf:
     def valid_dataset (self):
         dataset = tf.data.Dataset.from_tensor_slices(np.arange(self.num_valid_batches))
         dataset = dataset.map(self.tf_read_valid_samples)
-        dataset = dataset.repeat(1)
+        dataset = dataset.repeat()
         return dataset.__iter__()

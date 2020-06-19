@@ -39,7 +39,7 @@ class Trainer:
                                                              directory = checkpoint_dir,
                                                              max_to_keep = 3)
         #self.checkpoint.model.compile(optimizer = self.checkpoint.optimizer, loss = 'mse', experimental_run_tf_function = False)
-        self.checkpoint.model.compile(optimizer = self.checkpoint.optimizer, loss = 'mse')
+        #self.checkpoint.model.compile(optimizer = self.checkpoint.optimizer, loss = 'mse')
         self.resume()
 
     def resume (self):
@@ -90,11 +90,11 @@ class Trainer:
 
             # Evaluate the current model using the validation data.
             #print ("Evaluating the current model using " + str(self.dataset.num_valid_batches) + " validation batches.")
-            #valid_loss = self.evaluate(valid_dataset, self.dataset.num_valid_batches)
+            valid_loss = self.evaluate(valid_dataset, self.dataset.num_valid_batches)
 
             print ("Epoch " + str(self.checkpoint.epoch.numpy()) +\
                    " training loss = " + str(train_loss.numpy()) +\
-                   #" validation loss = " + str(valid_loss.numpy()) +\
+                   " validation loss = " + str(valid_loss.numpy()) +\
                    " training timing: " + str(timing) + " sec")
 
             # Write the loss values to the output files.
