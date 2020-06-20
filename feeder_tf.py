@@ -89,8 +89,21 @@ class cosmoflow_tf:
         print ("Number of training batches in the given " + str(num_local_files) +
                " files: " + str(self.num_train_batches))
 
+        # Calculate the local file offsets and lengths.
+        num_local_valid_files = int(math.floor(len(self.valid_files) / self.size))
+        local_valid_files_off = num_local_valid_files * self.rank
+        if self.rank < (len(self.valid_files) % self.size):
+            num_local_valid_files += 1
+            local_valid_files_off += self.rank
+        else:
+            local_valid_files_off += (len(self.valid_files) % self.size)
+        self.local_valid_files = self.valid_files[local_valid_files_off:
+                                                  local_valid_files_off + num_local_valid_files]
+        for i in range(len(self.local_valid_files)):
+            print ("R" + str(self.rank) + " will process " + self.local_valid_files[i])
+
         self.num_valid_batches = 0
-        for file_path in self.valid_files:
+        for file_path in self.local_valid_files:
             f = h5py.File(file_path, 'r')
             self.num_valid_batches += f['unitPar'].shape[0]
         self.num_valid_batches = int(math.floor(self.num_valid_batches / self.batch_size))

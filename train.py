@@ -4,6 +4,7 @@ Sunwoo Lee
 Northwestern University
 '''
 import time
+from mpi4py import MPI
 import tensorflow as tf
 import multiprocessing as mp
 import horovod.tensorflow as hvd
@@ -91,6 +92,9 @@ class Trainer:
             # Evaluate the current model using the validation data.
             #print ("Evaluating the current model using " + str(self.dataset.num_valid_batches) + " validation batches.")
             valid_loss = self.evaluate(valid_dataset)
+            valid_loss_np = valid_loss.numpy()
+            MPI.COMM_WORLD.allreduce(valid_loss_np, MPI.SUM)
+            average_loss = valid_loss_np / self.size
 
             print ("Epoch " + str(self.checkpoint.epoch.numpy()) +\
                    " training loss = " + str(train_loss.numpy()) +\
@@ -102,7 +106,7 @@ class Trainer:
             f.write(str(train_loss.numpy()) + "\n")
             f.close()
             f = open("loss-valid.txt", "a")
-            f.write(str(valid_loss.numpy()) + "\n")
+            f.write(str(average_loss) + "\n")
             f.close()
 
     def evaluate (self, dataset):
