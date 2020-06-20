@@ -64,7 +64,7 @@ if __name__ == "__main__":
 
     # Initialize model, dataset, and trainer.
     cosmo_model = model()
-    dataset = cosmoflow_tf("small_test.yaml", lock, cv,
+    dataset = cosmoflow_tf("test.yaml", lock, cv,
                            num_cached_files,
                            data, label, num_samples,
                            batch_size = args.batch_size)
