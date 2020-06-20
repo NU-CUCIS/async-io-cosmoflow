@@ -99,8 +99,6 @@ class cosmoflow_tf:
             local_valid_files_off += (len(self.valid_files) % self.size)
         self.local_valid_files = self.valid_files[local_valid_files_off:
                                                   local_valid_files_off + num_local_valid_files]
-        for i in range(len(self.local_valid_files)):
-            print ("R" + str(self.rank) + " will process " + self.local_valid_files[i])
 
         self.num_valid_batches = 0
         for file_path in self.local_valid_files:

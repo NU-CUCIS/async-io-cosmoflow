@@ -93,12 +93,11 @@ class Trainer:
             #print ("Evaluating the current model using " + str(self.dataset.num_valid_batches) + " validation batches.")
             valid_loss = self.evaluate(valid_dataset)
             valid_loss_np = valid_loss.numpy()
-            MPI.COMM_WORLD.allreduce(valid_loss_np, MPI.SUM)
-            average_loss = valid_loss_np / self.size
+            average_loss = MPI.COMM_WORLD.allreduce(valid_loss_np, MPI.SUM) / MPI.COMM_WORLD.Get_size()
 
             print ("Epoch " + str(self.checkpoint.epoch.numpy()) +\
                    " training loss = " + str(train_loss.numpy()) +\
-                   " validation loss = " + str(valid_loss.numpy()) +\
+                   " validation loss = " + str(average_loss) +\
                    " training timing: " + str(timing) + " sec")
 
             # Write the loss values to the output files.
