@@ -10,6 +10,7 @@ import tensorflow as tf
 import yaml
 import numpy as np
 import h5py
+import math
 from mpi4py import MPI
 
 class cosmoflow_tf:
@@ -83,7 +84,7 @@ class cosmoflow_tf:
             for file_path in self.valid_files:
                 print (file_path)
 
-        num_local_files = int(len(self.train_files) / self.size)
+        num_local_files = int(math.floor(len(self.train_files) / self.size))
         self.num_train_batches = int(self.batches_per_file * num_local_files)
         print ("Number of training batches in the given " + str(num_local_files) +
                " files: " + str(self.num_train_batches))
@@ -92,7 +93,7 @@ class cosmoflow_tf:
         for file_path in self.valid_files:
             f = h5py.File(file_path, 'r')
             self.num_valid_batches += f['unitPar'].shape[0]
-        self.num_valid_batches = int(self.num_valid_batches / self.batch_size)
+        self.num_valid_batches = int(math.floor(self.num_valid_batches / self.batch_size))
         print ("Number of validation batches in the given " + str(len(self.valid_files)) +
                " files: " + str(self.num_valid_batches))
 
@@ -152,7 +153,7 @@ class cosmoflow_tf:
         # Read a new file if there are no cached batches.
         if self.num_cached_valid_batches == 0:
             if self.valid_file_index == len(self.valid_files):
-                print ("Invalid valid_file_index!")
+                print ("batch_id: " + str(batch_id) + " Invalid valid_file_index! " + str(self.valid_file_index) + "/" + str(len(self.valid_files)))
             f = h5py.File(self.valid_files[self.valid_file_index], 'r')
             self.valid_file_index += 1
             self.images = f['3Dmap'][:]

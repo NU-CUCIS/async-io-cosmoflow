@@ -90,7 +90,7 @@ class Trainer:
 
             # Evaluate the current model using the validation data.
             #print ("Evaluating the current model using " + str(self.dataset.num_valid_batches) + " validation batches.")
-            valid_loss = self.evaluate(valid_dataset, self.dataset.num_valid_batches)
+            valid_loss = self.evaluate(valid_dataset)
 
             print ("Epoch " + str(self.checkpoint.epoch.numpy()) +\
                    " training loss = " + str(train_loss.numpy()) +\
@@ -105,10 +105,10 @@ class Trainer:
             f.write(str(valid_loss.numpy()) + "\n")
             f.close()
 
-    def evaluate (self, dataset, num_valid_batches):
+    def evaluate (self, dataset):
         self.dataset.valid_file_index = 0
         loss_mean = Mean()
-        for i in tqdm(range(num_valid_batches)):
+        for i in tqdm(range(self.dataset.num_valid_batches)):
             data, label = dataset.next()
             prediction = self.checkpoint.model(data)
             loss = self.loss(label, prediction)
