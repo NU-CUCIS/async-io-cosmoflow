@@ -27,8 +27,8 @@ class Trainer:
         self.dataset = dataset
         self.model = model.build_model()
         self.model.summary()
-        self.lr = PiecewiseConstantDecay(boundaries = [100],
-                                         values = [1e-4, 5e-5])
+        self.lr = PiecewiseConstantDecay(boundaries = [20, 40],
+                                         values = [1e-4, 5e-5, 25e-6])
         self.loss = MeanSquaredError()
         self.opt = Adam(lr = 1e-4)
         self.do_checkpoint = do_checkpoint
@@ -98,12 +98,12 @@ class Trainer:
                    " training timing: " + str(timing) + " sec")
 
             # Write the loss values to the output files.
-            #f = open("loss-train.txt", "a")
-            #f.write(str(train_loss.numpy()) + "\n")
-            #f.close()
-            #f = open("loss-valid.txt", "a")
-            #f.write(str(valid_loss.numpy()) + "\n")
-            #f.close()
+            f = open("loss-train.txt", "a")
+            f.write(str(train_loss.numpy()) + "\n")
+            f.close()
+            f = open("loss-valid.txt", "a")
+            f.write(str(valid_loss.numpy()) + "\n")
+            f.close()
 
     def evaluate (self, dataset, num_valid_batches):
         self.dataset.valid_file_index = 0
