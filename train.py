@@ -23,13 +23,13 @@ class Trainer:
         #    tf.config.experimental.set_memory_growth(gpu, True)
         #if gpus:
         #    tf.config.experimental.set_visible_devices(gpus[hvd.local_rank()], 'GPU')
-
+        self.rank = MPI.COMM_WORLD.Get_rank()
         self.num_epochs = num_epochs
         self.dataset = dataset
         self.model = model.build_model()
         self.model.summary()
         self.lr = PiecewiseConstantDecay(boundaries = [20, 40],
-                                         values = [1e-4, 5e-5, 25e-6])
+                                         values = [1e-3, 5e-4, 25e-5])
         self.loss = MeanSquaredError()
         self.opt = Adam(lr = 1e-4)
         self.do_checkpoint = do_checkpoint
@@ -101,12 +101,13 @@ class Trainer:
                    " training timing: " + str(timing) + " sec")
 
             # Write the loss values to the output files.
-            f = open("loss-train.txt", "a")
-            f.write(str(train_loss.numpy()) + "\n")
-            f.close()
-            f = open("loss-valid.txt", "a")
-            f.write(str(average_loss) + "\n")
-            f.close()
+            if self.rank == 0:
+                f = open("loss-train.txt", "a")
+                f.write(str(train_loss.numpy()) + "\n")
+                f.close()
+                f = open("loss-valid.txt", "a")
+                f.write(str(average_loss) + "\n")
+                f.close()
 
     def evaluate (self, dataset):
         self.dataset.valid_file_index = 0

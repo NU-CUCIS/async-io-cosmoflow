@@ -173,7 +173,7 @@ class cosmoflow_tf:
             self.num_cached_valid_batches = int(self.images.shape[0] / self.batch_size)
 
         # Get a mini-batch from the memory buffer.
-        index = self.num_cached_valid_batches - 1
+        index = (self.num_cached_valid_batches - 1) * self.batch_size
         images = self.images[index : index + self.batch_size]
         labels = self.labels[index : index + self.batch_size]
         self.num_cached_valid_batches -= 1
