@@ -81,6 +81,7 @@ class IOdaemon:
                 self.file_index += 1
                 if self.file_index == self.num_local_files:
                     self.file_index = 0
+                    self.shuffle()
             cv.notify()
             while finish.value == 0 and num_cached_files.value == num_buffers:
                 cv.wait()
