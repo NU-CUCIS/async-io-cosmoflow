@@ -15,7 +15,7 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.optimizers.schedules import PiecewiseConstantDecay
 
 class Trainer:
-    def __init__ (self, model, dataset = None, num_epochs = 1, checkpoint_dir = "./checkpoint", do_checkpoint = False):
+    def __init__ (self, model, io_daemon, dataset = None, num_epochs = 1, checkpoint_dir = "./checkpoint", do_checkpoint = False):
         # Initialize Horovod.tensorflow.
         #hvd.init()
         #gpus = tf.config.experimental.list_physical_devices('GPU')
@@ -26,12 +26,13 @@ class Trainer:
         self.rank = MPI.COMM_WORLD.Get_rank()
         self.num_epochs = num_epochs
         self.dataset = dataset
+        self.io_daemon = io_daemon
         self.model = model.build_model()
         self.model.summary()
         self.lr = PiecewiseConstantDecay(boundaries = [20, 40],
-                                         values = [1e-3, 5e-4, 25e-5])
+                                         values = [5e-3, 25e-4, 125e-5])
         self.loss = MeanSquaredError()
-        self.opt = Adam(lr = 1e-4)
+        self.opt = Adam(learning_rate = self.lr)
         self.do_checkpoint = do_checkpoint
         self.checkpoint = tf.train.Checkpoint(epoch = tf.Variable(0),
                                               model = self.model,
@@ -88,6 +89,7 @@ class Trainer:
             if hvd.rank() == 0 and self.do_checkpoint == True:
                 self.checkpoint_manager.save()
             self.dataset.shuffle()
+            self.io_daemon.shuffle()
 
             # Evaluate the current model using the validation data.
             #print ("Evaluating the current model using " + str(self.dataset.num_valid_batches) + " validation batches.")
