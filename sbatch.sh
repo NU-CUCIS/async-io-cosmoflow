@@ -1,6 +1,6 @@
 #!/bin/bash  -l
 
-#SBATCH -t 03:00:00
+#SBATCH -t 07:00:00
 #SBATCH --qos=regular
 #SBATCH --nodes=1
 #SBATCH --constraint=gpu
@@ -19,9 +19,9 @@ ulimit -c unlimited
 #srun -n 1 python3 ../cosmoflow/train_CosmoFlow.py --steps=16 --epochs=1 --batch_size=8 --noHorovod
 #srun -n 2 python3 ../cosmoflow/train_CosmoFlow.py --steps=16 --epochs=1 --batch_size=8
 
-cd /global/homes/s/slz839/cosmo/tf2-cosmoflow
+cd /global/homes/s/slz839/cosmo/temp/tf2-cosmoflow
 #srun -n 1 -c 80 python3 main.py --epochs=3 --batch_size=16
-srun -n 8 -c 10 python3 main.py --epochs=30 --batch_size=1 --overlap=1 --checkpoint=0
+srun -n 8 -c 10 python3 main.py --epochs=90 --batch_size=2 --overlap=1 --checkpoint=1
 
 #module unload gcc/8.3.0
 #module unload cuda/10.1.243

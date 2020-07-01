@@ -19,43 +19,44 @@ class model ():
 
     def build_model(self):
         x_in = Input(shape = (128, 128, 128, 12), name = "input")
-        h = BatchNormalization()(x_in)
+        #h = BatchNormalization()(x_in)
+        h = x_in
 
         h = Conv3D(16, self.kernel_size, padding = 'same', activation = 'linear', name = 'conv1')(h)
-        #h = LeakyReLU(name = 'relu1')(h)
-        h = BatchNormalization()(h)
+        h = ReLU(name = 'relu1')(h)
+        #h = BatchNormalization()(h)
         h = AveragePooling3D(pool_size = self.pool_size, name = 'pool1')(h)
 
         h = Conv3D(32, self.kernel_size, padding = 'same', activation = 'linear', name = 'conv2')(h)
-        #h = LeakyReLU(name = 'relu2')(h)
-        h = BatchNormalization()(h)
+        h = ReLU(name = 'relu2')(h)
+        #h = BatchNormalization()(h)
         h = AveragePooling3D(pool_size = self.pool_size, name = 'pool2')(h)
 
         h = Conv3D(64, self.kernel_size, padding = 'same', activation = 'linear', name = 'conv3')(h)
-        #h = LeakyReLU(name = 'relu3')(h)
-        h = BatchNormalization()(h)
+        h = ReLU(name = 'relu3')(h)
+        #h = BatchNormalization()(h)
         h = AveragePooling3D(pool_size = self.pool_size, name = 'pool3')(h)
 
         h = Conv3D(128, self.kernel_size, strides = (2, 2, 2), padding = 'same', activation = 'linear', name = 'conv4')(h)
-        #h = LeakyReLU(name = 'relu4')(h)
-        h = BatchNormalization()(h)
+        h = ReLU(name = 'relu4')(h)
+        #h = BatchNormalization()(h)
         h = AveragePooling3D(pool_size = self.pool_size, name = 'pool4')(h)
 
         h = Conv3D(256, self.kernel_size, padding = 'same', activation = 'linear', name = 'conv5')(h)
-        #h = LeakyReLU(name = 'relu5')(h)
-        h = BatchNormalization()(h)
+        h = ReLU(name = 'relu5')(h)
+        #h = BatchNormalization()(h)
         h = AveragePooling3D(pool_size = self.pool_size, name = 'pool5')(h)
 
         h = Conv3D(256, self.kernel_size, padding = 'same', activation = 'linear', name = 'conv6')(h)
-        #h = LeakyReLU(name = 'relu6')(h)
-        h = BatchNormalization()(h)
+        h = ReLU(name = 'relu6')(h)
+        #h = BatchNormalization()(h)
 
         h = Conv3D(256, self.kernel_size, padding = 'same', activation = 'linear', name = 'conv7')(h)
-        #h = LeakyReLU(name = 'relu7')(h)
-        h = BatchNormalization()(h)
+        h = LeakyReLU(name = 'relu7')(h)
+        #h = BatchNormalization()(h)
 
         h = Flatten(name = 'pool_to_full')(h)
-        h = Dropout(0.05, name='drop1')(h)
+        #h = Dropout(0.05, name='drop1')(h)
 
         h = Dense(2048, activation = 'linear', name = 'full1')(h)
         h = Dropout(0.05, name='drop2')(h)
