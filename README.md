@@ -1,5 +1,5 @@
 # tf2-cosmoflow
-This is a cosmoflow implementation with TensorFlow 2.1.
+This program is a CosmoFlow implementation with TensorFlow 2.
 The training is parallelized using Horovod.
 
 ## Software Requirements
@@ -15,7 +15,7 @@ git clone https://github.com/swblaster/tf2-cosmoflow
 2. Load the modules for using TensorFlow, Horovod, and GPUs on Cori.
 Note that Horovod is embedded in TensorFlow module.
 ```
-module load tensorflow/gpu-2.1.0-py37
+module load tensorflow/gpu-2.2.0-py37
 module load esslurm
 ```
 
