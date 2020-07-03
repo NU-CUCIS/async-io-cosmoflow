@@ -21,17 +21,16 @@ class Trainer:
         self.num_epochs = num_epochs
         self.dataset = dataset
         self.io_daemon = io_daemon
-        self.model = model.build_model()
-        self.model.summary()
-        #self.lr = PiecewiseConstantDecay(boundaries = [7680, 15360],
-        self.lr = PiecewiseConstantDecay(boundaries = [5120, 10240 ],
-                                         values = [2e-3, 2e-4, 2e-5])
+        model = model.build_model()
+        model.summary()
+        lr = PiecewiseConstantDecay(boundaries = [5120, 10240, 15360],
+                                    values = [2e-3, 2e-4, 2e-5, 2e-6])
         self.loss = MeanSquaredError()
-        self.opt = Adam(learning_rate = self.lr)
+        opt = Adam(learning_rate = lr)
         self.do_checkpoint = do_checkpoint
         self.checkpoint = tf.train.Checkpoint(epoch = tf.Variable(0),
-                                              model = self.model,
-                                              optimizer = self.opt)
+                                              model = model,
+                                              optimizer = opt)
         self.checkpoint_manager = tf.train.CheckpointManager(checkpoint = self.checkpoint,
                                                              directory = checkpoint_dir,
                                                              max_to_keep = 3)
@@ -56,13 +55,15 @@ class Trainer:
         train_dataset = self.dataset.train_dataset()
         valid_dataset = self.dataset.valid_dataset()
 
-        for epoch_id in range(self.checkpoint.epoch.numpy(), self.num_epochs):
+        first_epoch = self.checkpoint.epoch.numpy()
+        for epoch_id in range(first_epoch, self.num_epochs):
+            print ("Epoch: " + str(epoch_id) + " lr: " + str(self.checkpoint.optimizer._decayed_lr('float32').numpy()))
+
             self.checkpoint.epoch.assign_add(1)
             self.dataset.train_file_index = 0
             loss_mean = Mean()
             self.start_time = time.perf_counter()
 
-            print ("Epoch: " + str(epoch_id) + " lr: " + str(self.checkpoint.optimizer.learning_rate.numpy()))
             # Train the model.
             for i in tqdm(range(self.dataset.num_train_batches)):
                 # I/O
@@ -74,7 +75,7 @@ class Trainer:
 
                 if epoch_id == 0 and i == 0:
                     hvd.broadcast_variables(self.checkpoint.model.variables, root_rank=0)
-                    hvd.broadcast_variables(self.opt.variables(), root_rank=0)
+                    hvd.broadcast_variables(self.checkpoint.optimizer.variables(), root_rank=0)
 
             timing = time.perf_counter() - self.start_time
             train_loss = loss_mean.result()
