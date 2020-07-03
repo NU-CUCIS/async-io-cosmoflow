@@ -17,20 +17,15 @@ from tensorflow.keras.optimizers.schedules import PiecewiseConstantDecay
 class Trainer:
     def __init__ (self, model, io_daemon, dataset = None, num_epochs = 1, checkpoint_dir = "./checkpoint", do_checkpoint = False):
         # Initialize Horovod.tensorflow.
-        #hvd.init()
-        #gpus = tf.config.experimental.list_physical_devices('GPU')
-        #for gpu in gpus:
-        #    tf.config.experimental.set_memory_growth(gpu, True)
-        #if gpus:
-        #    tf.config.experimental.set_visible_devices(gpus[hvd.local_rank()], 'GPU')
         self.rank = MPI.COMM_WORLD.Get_rank()
         self.num_epochs = num_epochs
         self.dataset = dataset
         self.io_daemon = io_daemon
         self.model = model.build_model()
         self.model.summary()
-        self.lr = PiecewiseConstantDecay(boundaries = [7680, 15360],
-                                         values = [1e-4, 1e-5, 1e-6])
+        #self.lr = PiecewiseConstantDecay(boundaries = [7680, 15360],
+        self.lr = PiecewiseConstantDecay(boundaries = [5120, 10240 ],
+                                         values = [2e-3, 2e-4, 2e-5])
         self.loss = MeanSquaredError()
         self.opt = Adam(learning_rate = self.lr)
         self.do_checkpoint = do_checkpoint
@@ -40,8 +35,6 @@ class Trainer:
         self.checkpoint_manager = tf.train.CheckpointManager(checkpoint = self.checkpoint,
                                                              directory = checkpoint_dir,
                                                              max_to_keep = 3)
-        #self.checkpoint.model.compile(optimizer = self.checkpoint.optimizer, loss = 'mse', experimental_run_tf_function = False)
-        #self.checkpoint.model.compile(optimizer = self.checkpoint.optimizer, loss = 'mse')
         self.resume()
 
     def resume (self):
@@ -63,12 +56,13 @@ class Trainer:
         train_dataset = self.dataset.train_dataset()
         valid_dataset = self.dataset.valid_dataset()
 
-        for epoch_id in range(self.num_epochs):
+        for epoch_id in range(self.checkpoint.epoch.numpy(), self.num_epochs):
             self.checkpoint.epoch.assign_add(1)
             self.dataset.train_file_index = 0
             loss_mean = Mean()
             self.start_time = time.perf_counter()
 
+            print ("Epoch: " + str(epoch_id) + " lr: " + str(self.checkpoint.optimizer.learning_rate.numpy()))
             # Train the model.
             for i in tqdm(range(self.dataset.num_train_batches)):
                 # I/O
