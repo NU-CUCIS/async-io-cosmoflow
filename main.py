@@ -71,11 +71,16 @@ if __name__ == "__main__":
 
     # Initialize the I/O daemon.
     async_io_module = IOdaemon(dataset)
-    trainer = Trainer(cosmo_model, async_io_module, dataset, args.epochs, do_checkpoint = args.checkpoint)
+    trainer = Trainer(cosmo_model,
+                      async_io_module,
+                      dataset,
+                      args.epochs,
+                      do_checkpoint = args.checkpoint)
 
-    io_process = mp.Process(target = async_io_module.run, args = (lock, cv, finish,
-                                                                  num_cached_files,
-                                                                  data, label, num_samples))
+    io_process = mp.Process(target = async_io_module.run,
+                            args = (lock, cv, finish,
+                                    num_cached_files,
+                                    data, label, num_samples))
     io_process.start()
 
     # Start the training.

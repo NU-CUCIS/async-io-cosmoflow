@@ -23,8 +23,8 @@ class Trainer:
         self.io_daemon = io_daemon
         model = model.build_model()
         model.summary()
-        lr = PiecewiseConstantDecay(boundaries = [5120, 10240, 15360],
-                                    values = [2e-3, 2e-4, 2e-5, 2e-6])
+        lr = PiecewiseConstantDecay(boundaries = [12800, 25600],
+                                    values = [1e-3, 1e-4, 1e-5])
         self.loss = MeanSquaredError()
         opt = Adam(learning_rate = lr)
         self.do_checkpoint = do_checkpoint
@@ -66,10 +66,7 @@ class Trainer:
 
             # Train the model.
             for i in tqdm(range(self.dataset.num_train_batches)):
-                # I/O
                 data, label = train_dataset.next()
-
-                # Computation
                 loss = self.train_step(data, label)
                 loss_mean(loss)
 
@@ -87,7 +84,6 @@ class Trainer:
             self.io_daemon.shuffle()
 
             # Evaluate the current model using the validation data.
-            #print ("Evaluating the current model using " + str(self.dataset.num_valid_batches) + " validation batches.")
             valid_loss = self.evaluate(valid_dataset)
             valid_loss_np = valid_loss.numpy()
             average_loss = MPI.COMM_WORLD.allreduce(valid_loss_np, MPI.SUM) / MPI.COMM_WORLD.Get_size()
