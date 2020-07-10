@@ -141,9 +141,6 @@ class cosmoflow_tf:
                 self.num_cached_train_batches = self.batches_per_file
             self.rng.shuffle(self.batch_list)
 
-        for i in range (self.batches_per_file):
-            print ("batch_list[" + str(i) + "] " + str(self.batch_list[i]))
-
         self.num_cached_train_batches -= 1
         index = self.batch_list[self.num_cached_train_batches] * self.batch_size
 
