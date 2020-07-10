@@ -19,10 +19,12 @@ def get_parser():
                         help = "number of training samples for each mini-batch")
     parser.add_argument("-o", "--overlap", type = int, default = 1,
                         help = "0: do not overlap I/O with computation, 1: overlap I/O with computation")
-    parser.add_argument("-c", "--checkpoint", type = int, default = 0,
+    parser.add_argument("-p", "--checkpoint", type = int, default = 0,
                         help = "0: do not checkpoint the model, 1: checkpoint the model")
     parser.add_argument("-e", "--epochs", type = int, default = 1,
                         help = "number of epochs")
+    parser.add_argument("-c", "--cache", type = int, default = 128,
+                        help = "buffer size with respect to the number of samples")
 
     args = parser.parse_args()
     return args
@@ -66,6 +68,7 @@ if __name__ == "__main__":
     cosmo_model = model()
     dataset = cosmoflow_tf("test.yaml", lock, cv,
                            num_cached_files,
+                           num_cached_samples,
                            data, label, num_samples,
                            batch_size = args.batch_size)
 
@@ -80,6 +83,7 @@ if __name__ == "__main__":
     io_process = mp.Process(target = async_io_module.run,
                             args = (lock, cv, finish,
                                     num_cached_files,
+                                    num_cached_samples,
                                     data, label, num_samples))
     io_process.start()
 

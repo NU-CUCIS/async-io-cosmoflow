@@ -35,13 +35,19 @@ class IOdaemon:
         if self.rank == 0:
             self.rng.shuffle(self.shuffled_index)
         self.comm.Bcast(self.shuffled_index, root = 0) 
-        print ("R" + str(self.rank) + " shuffled the files... the first file ID is " + str(self.shuffled_index[0]))
+        print ("R" + str(self.rank) + " shuffled the files... the first file ID is " +
+               str(self.shuffled_index[0]))
 
-    def run (self, lock, cv, finish, num_cached_files, data, label, num_samples):
+    def run (self, lock, cv, finish,
+             num_cached_files,
+             num_cahced_samples,
+             data, label, num_samples):
         num_cached_files.value = 0
+        num_cached_samples.value = 0
         prev_write_index = -1
         num_buffers = len(data)
         print ("Number of buffers: " + str(num_buffers))
+
         while 1:
             if finish.value == 1:
                 print ("R" + str(self.rank) + " Okay, I/O process will terminates...")

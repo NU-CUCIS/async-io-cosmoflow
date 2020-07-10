@@ -16,6 +16,7 @@ from mpi4py import MPI
 class cosmoflow_tf:
     def __init__ (self, yaml_file, lock, cv,
                   num_cached_files,
+                  num_cached_samples,
                   data, label, num_samples,
                   batch_size = 4):
         self.comm = MPI.COMM_WORLD
@@ -24,6 +25,7 @@ class cosmoflow_tf:
         self.lock = lock
         self.cv = cv
         self.num_cached_files = num_cached_files
+        self.num_cached_samples = num_cached_samples
         self.data = data
         self.label = label
         self.num_samples = num_samples
