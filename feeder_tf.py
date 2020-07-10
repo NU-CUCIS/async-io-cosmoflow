@@ -132,16 +132,20 @@ class cosmoflow_tf:
             num_samples = self.num_samples[self.read_index].value
             self.num_cached_train_batches = int(num_samples / self.batch_size)
 
-            self.batch_list = np.arange(self.samples_per_file)
+            self.batch_list = np.arange(self.batches_per_file)
             # In case the file contains fewer samples than 128,
             # fill in the memory buffer with the first samples.
-            if self.num_cached_train_batches < self.samples_per_file:
-                for i in range(self.num_cached_train_batches, self.samples_per_file):
+            if self.num_cached_train_batches < self.batches_per_file:
+                for i in range(self.num_cached_train_batches, self.batches_per_file):
                     self.batch_list[i] = i % self.num_cached_train_batches
+                self.num_cached_train_batches = self.batches_per_file
             self.rng.shuffle(self.batch_list)
 
+        for i in range (self.batches_per_file):
+            print ("batch_list[" + str(i) + "] " + str(self.batch_list[i]))
+
         self.num_cached_train_batches -= 1
-        index = self.batch_list[self.num_cached_train_batches]
+        index = self.batch_list[self.num_cached_train_batches] * self.batch_size
 
         data_np = np.frombuffer(self.data[self.read_index], dtype = np.uint16).reshape(self.data_shape)
         label_np = np.frombuffer(self.label[self.read_index], dtype = np.float32).reshape(self.label_shape)
