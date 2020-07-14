@@ -1,9 +1,10 @@
 # tf2-cosmoflow
 This program is a CosmoFlow implementation with TensorFlow 2.
 The training is parallelized using Horovod.
+For scalable parallel training, an asynchronous I/O module has been implemented based on python multiprocessing package.
 
 ## Software Requirements
-  * TensorFlow > 2.0.0
+  * TensorFlow > 2.0.0 (2.2.0 is recommended)
   * Horovod > 0.16
 
 ## Instructions to Run on Cori
@@ -23,4 +24,4 @@ module load esslurm
 
 ## Questions/Comments
   * Sunwoo Lee <sunwoolee1.2014@u.northwestern.edu>
-  * Wei-keng Liao <wkliao@eecs.northwestern.edu>
+  * Wei-keng Liao <wkliao@northwestern.edu>
