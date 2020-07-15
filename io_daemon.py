@@ -40,7 +40,7 @@ class IOdaemon:
 
     def run (self, lock, cv, finish,
              num_cached_files,
-             num_cahced_samples,
+             num_cached_samples,
              data, label, num_samples):
         num_cached_files.value = 0
         num_cached_samples.value = 0
