@@ -110,13 +110,6 @@ class cosmoflow_tf:
         print ("Number of validation batches in the given " + str(len(self.valid_files)) +
                " files: " + str(self.num_valid_batches))
 
-        self.shuffle()
-
-    def shuffle (self):
-        # Shuffle the files.
-        self.shuffled_index = np.arange(len(self.train_files))
-        self.rng.shuffle(self.shuffled_index)
-
     def read_train_samples (self, batch_id):
         self.lock.acquire()
         while self.num_cached_files.value == 0:

@@ -80,7 +80,6 @@ class Trainer:
 
             if hvd.rank() == 0 and self.do_checkpoint == True:
                 self.checkpoint_manager.save()
-            self.dataset.shuffle()
             self.io_daemon.shuffle()
 
             # Evaluate the current model using the validation data.
