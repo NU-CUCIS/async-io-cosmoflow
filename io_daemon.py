@@ -25,9 +25,14 @@ class IOdaemon:
         self.data_shape = (128, 128, 128, 128, 12)
         self.label_shape = (128, 4)
         self.num_local_files = int(self.num_train_files / self.size)
+        total_cache_size = self.cache_size * self.num_train_files
+        if self.cache_size > 0:
+            self.data_cache = np.zeros((total_cache_size, 128, 128, 128, 12), dtype='uint16')
+            self.label_cache = np.zeros((total_cache_size, 4), dtype='float32')
         print ("R" + str(self.rank) + " will work on "  + str(self.num_local_files) + " files.")
 
         self.shuffle()
+
 
     def shuffle (self):
         # Shuffle the file index.
@@ -68,11 +73,17 @@ class IOdaemon:
                 num_samples[write_index].value = f['3Dmap'].shape[0]
                 length = num_samples[write_index].value
 
-                # Find the shape of the data and label.
+                # [I/O] Read the (length - cache_size) samples from the file.
                 data_np = np.frombuffer(data[write_index], dtype = np.uint16).reshape(self.data_shape)
-                np.copyto(data_np[0:length], f['3Dmap'][:])
+                np.copyto(data_np[0:length - self.cache_size], f['3Dmap'][0:length - self.cache_size])
                 label_np = np.frombuffer(label[write_index], dtype = np.float32).reshape(self.label_shape)
-                np.copyto(label_np[0:length], f['unitPar'][:])
+                np.copyto(label_np[0:length - self.cache_size], f['unitPar'][:length - self.cache_size])
+
+                # Copy the cached data into the shared buffer.
+                if self.cache_size > 0:
+                    cache_index = file_index * self.cache_size
+                    np.copyto(data_np[length - self.cache_size:length], self.data_cache[cache_index: cache_index + self.cache_size])
+                    np.copyto(label_np[length - self.cache_size:length], self.label_cache[cache_index: cache_index + self.cache_size])
 
                 f.close()
                 end = time.time()
