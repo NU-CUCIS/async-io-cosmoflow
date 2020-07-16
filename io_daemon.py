@@ -70,7 +70,7 @@ class IOdaemon:
 
                 # Find the shape of the data and label.
                 data_np = np.frombuffer(data[write_index], dtype = np.uint16).reshape(self.data_shape)
-                np.copyto(data_np[0:length - 32], f['3Dmap'][0:length - 32])
+                np.copyto(data_np[0:length], f['3Dmap'][:])
                 label_np = np.frombuffer(label[write_index], dtype = np.float32).reshape(self.label_shape)
                 np.copyto(label_np[0:length], f['unitPar'][:])
 
