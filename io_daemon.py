@@ -11,13 +11,13 @@ import multiprocessing
 from mpi4py import MPI
 
 class IOdaemon:
-    def __init__ (self, dataset, buffer_size = 1):
+    def __init__ (self, dataset, cache_size = 0):
         self.comm = MPI.COMM_WORLD
         self.size = self.comm.Get_size()
         self.rank = self.comm.Get_rank()
         self.rng = np.random.default_rng()
         self.dataset = dataset
-        self.buffer_size = buffer_size
+        self.cache_size = cache_size
         self.num_train_files = len(dataset.train_files)
         self.num_valid_files = len(dataset.valid_files)
         self.file_index = 0
@@ -70,7 +70,7 @@ class IOdaemon:
 
                 # Find the shape of the data and label.
                 data_np = np.frombuffer(data[write_index], dtype = np.uint16).reshape(self.data_shape)
-                np.copyto(data_np[0:length], f['3Dmap'][:])
+                np.copyto(data_np[0:length - 32], f['3Dmap'][0:length - 32])
                 label_np = np.frombuffer(label[write_index], dtype = np.float32).reshape(self.label_shape)
                 np.copyto(label_np[0:length], f['unitPar'][:])
 

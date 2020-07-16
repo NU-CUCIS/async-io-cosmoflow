@@ -23,8 +23,8 @@ def get_parser():
                         help = "0: do not checkpoint the model, 1: checkpoint the model")
     parser.add_argument("-e", "--epochs", type = int, default = 1,
                         help = "number of epochs")
-    parser.add_argument("-c", "--cache", type = int, default = 128,
-                        help = "buffer size with respect to the number of samples")
+    parser.add_argument("-c", "--cache_size", type = int, default = 0,
+                        help = "cache size with respect to the number of samples")
 
     args = parser.parse_args()
     return args
@@ -73,7 +73,7 @@ if __name__ == "__main__":
                            batch_size = args.batch_size)
 
     # Initialize the I/O daemon.
-    async_io_module = IOdaemon(dataset)
+    async_io_module = IOdaemon(dataset, args.cache_size)
     trainer = Trainer(cosmo_model,
                       async_io_module,
                       dataset,
