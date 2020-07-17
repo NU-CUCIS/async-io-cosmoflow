@@ -10,4 +10,4 @@
 
 ulimit -c unlimited
 
-srun -n 8 -c 10 python3 main.py --epochs=2 --batch_size=4 --overlap=1 --checkpoint=1 --cache_size=32
+srun -n 8 -c 10 python3 main.py --epochs=100 --batch_size=4 --overlap=1 --checkpoint=1 --cache_size=32
