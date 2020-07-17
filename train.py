@@ -26,7 +26,7 @@ class Trainer:
         self.io_daemon = io_daemon
         model = model.build_model()
         model.summary()
-        lr = PiecewiseConstantDecay(boundaries = [12800, 25600],
+        lr = PiecewiseConstantDecay(boundaries = [12800, 19200],
                                     values = [1e-3, 1e-4, 1e-5])
         self.loss = MeanSquaredError()
         opt = Adam(learning_rate = lr)
