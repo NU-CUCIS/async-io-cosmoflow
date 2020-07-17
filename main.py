@@ -25,6 +25,8 @@ def get_parser():
                         help = "number of epochs")
     parser.add_argument("-c", "--cache_size", type = int, default = 0,
                         help = "cache size with respect to the number of samples")
+    parser.add_argument("-f", "--file_shuffle", type = int, default = 0,
+                        help = "shuffle the files across the processes")
 
     args = parser.parse_args()
     return args
@@ -78,7 +80,8 @@ if __name__ == "__main__":
                       async_io_module,
                       dataset,
                       args.epochs,
-                      do_checkpoint = args.checkpoint)
+                      do_checkpoint = args.checkpoint,
+                      do_file_shuffle = args.file_shuffle)
 
     io_process = mp.Process(target = async_io_module.run,
                             args = (lock, cv, finish,

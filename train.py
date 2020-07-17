@@ -15,7 +15,10 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.optimizers.schedules import PiecewiseConstantDecay
 
 class Trainer:
-    def __init__ (self, model, io_daemon, dataset = None, num_epochs = 1, checkpoint_dir = "./checkpoint", do_checkpoint = False):
+    def __init__ (self, model, io_daemon, dataset = None, num_epochs = 1,
+                  checkpoint_dir = "./checkpoint",
+                  do_checkpoint = False,
+                  do_file_shuffle = 0):
         # Initialize Horovod.tensorflow.
         self.rank = MPI.COMM_WORLD.Get_rank()
         self.num_epochs = num_epochs
@@ -28,6 +31,7 @@ class Trainer:
         self.loss = MeanSquaredError()
         opt = Adam(learning_rate = lr)
         self.do_checkpoint = do_checkpoint
+        self.do_file_shuffle = do_file_shuffle
         self.checkpoint = tf.train.Checkpoint(epoch = tf.Variable(0),
                                               model = model,
                                               optimizer = opt)
@@ -80,7 +84,8 @@ class Trainer:
 
             if hvd.rank() == 0 and self.do_checkpoint == True:
                 self.checkpoint_manager.save()
-            self.io_daemon.shuffle()
+            if self.do_file_shuffle != 0:
+                self.io_daemon.shuffle()
 
             # Evaluate the current model using the validation data.
             valid_loss = self.evaluate(valid_dataset)
