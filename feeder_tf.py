@@ -114,6 +114,7 @@ class cosmoflow_tf:
         self.num_valid_batches = int(math.floor(self.num_valid_batches / self.batch_size))
         print ("Number of validation batches in the given " + str(len(self.valid_files)) +
                " files: " + str(self.num_valid_batches))
+        self.shuffle()
 
     def shuffle (self):
         # Shuffle the file index.
