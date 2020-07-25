@@ -63,7 +63,7 @@ class Trainer:
             self.checkpoint.epoch.assign_add(1)
             self.dataset.train_file_index = 0
             loss_mean = Mean()
-            self.start_time = time.perf_counter()
+            start = time.time()
 
             if self.do_shuffle == 1:
                 self.dataset.shuffle()
@@ -78,7 +78,8 @@ class Trainer:
                     hvd.broadcast_variables(self.checkpoint.model.variables, root_rank=0)
                     hvd.broadcast_variables(self.checkpoint.optimizer.variables(), root_rank=0)
 
-            timing = time.perf_counter() - self.start_time
+            end = time.time()
+            timing = end - start
             train_loss = loss_mean.result()
             loss_mean.reset_states()
 

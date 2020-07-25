@@ -112,10 +112,13 @@ class IOdaemon:
                 self.file_index += 1
                 if self.file_index == self.num_local_files:
                     self.file_index = 0
-                    if self.do_shuffle == 1:
-                        cv.wait()
-                        self.shuffled_index[:] = self.dataset.shared_shuffled_index[:]
-                        print ("R" + str(self.rank) + " updated shuffled_index, [0] is : " + str(self.shuffled_index[0]))
+                    # [TODO] For now, there is no way to shuffle the files in advance when 
+                    # the number of local files is smaller than 2 (double buffering).
+                    #if self.do_shuffle == 1:
+                    #    print ("io module waits...")
+                    #    cv.wait()
+                    #    self.shuffled_index[:] = self.dataset.shared_shuffled_index[:]
+                    #    print ("R" + str(self.rank) + " updated shuffled_index, [0] is : " + str(self.shuffled_index[0]))
             cv.notify()
             while finish.value == 0 and num_cached_files.value == num_buffers:
                 cv.wait()
