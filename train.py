@@ -24,8 +24,8 @@ class Trainer:
         self.io_daemon = io_daemon
         model = model.build_model()
         model.summary()
-        lr = PiecewiseConstantDecay(boundaries = [12800, 19200],
-                                    values = [1e-3, 1e-4, 1e-5])
+        lr = PiecewiseConstantDecay(boundaries = [1600, 2400],
+                                    values = [2e-3, 2e-4, 2e-5])
         self.loss = MeanSquaredError()
         opt = Adam(learning_rate = lr)
         self.do_checkpoint = do_checkpoint
