@@ -11,13 +11,14 @@ import multiprocessing
 from mpi4py import MPI
 
 class IOdaemon:
-    def __init__ (self, dataset, cache_size = 0):
+    def __init__ (self, dataset, cache_size = 0, do_shuffling = 0):
         self.comm = MPI.COMM_WORLD
         self.size = self.comm.Get_size()
         self.rank = self.comm.Get_rank()
         self.rng = np.random.default_rng()
         self.dataset = dataset
         self.cache_size = cache_size
+        self.do_shuffling = do_shuffling
         self.num_train_files = len(dataset.train_files)
         self.num_valid_files = len(dataset.valid_files)
         self.file_index = 0
@@ -119,6 +120,8 @@ class IOdaemon:
                 self.file_index += 1
                 if self.file_index == self.num_local_files:
                     self.file_index = 0
+                    if self.do_shuffling == 1:
+                        self.shuffle()
             cv.notify()
             while finish.value == 0 and num_cached_files.value == num_buffers:
                 cv.wait()
