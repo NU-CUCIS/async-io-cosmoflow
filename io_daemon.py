@@ -11,14 +11,15 @@ import multiprocessing
 from mpi4py import MPI
 
 class IOdaemon:
-    def __init__ (self, dataset, cache_size = 0, do_shuffling = 0):
+    def __init__ (self, dataset, do_shuffle = 0, cache_size = 0):
         self.comm = MPI.COMM_WORLD
         self.size = self.comm.Get_size()
         self.rank = self.comm.Get_rank()
         self.rng = np.random.default_rng()
         self.dataset = dataset
+        self.shuffled_index = np.arange(self.dataset.num_train_files)
         self.cache_size = cache_size
-        self.do_shuffling = do_shuffling
+        self.do_shuffle = do_shuffle
         self.num_train_files = len(dataset.train_files)
         self.num_valid_files = len(dataset.valid_files)
         self.file_index = 0
@@ -34,18 +35,6 @@ class IOdaemon:
             self.label_cache = np.zeros((total_cache_size, 4), dtype='float32')
         print ("R" + str(self.rank) + " will work on "  + str(self.num_local_files) + " files.")
 
-        self.shuffle()
-
-
-    def shuffle (self):
-        # Shuffle the file index.
-        self.shuffled_index = np.arange(self.num_train_files)
-        if self.rank == 0:
-            self.rng.shuffle(self.shuffled_index)
-        self.comm.Bcast(self.shuffled_index, root = 0) 
-        print ("R" + str(self.rank) + " shuffled the files... the first file ID is " +
-               str(self.shuffled_index[0]))
-
     def run (self, lock, cv, finish,
              num_cached_files,
              num_cached_samples,
@@ -54,6 +43,9 @@ class IOdaemon:
         num_cached_samples.value = 0
         prev_write_index = -1
         num_buffers = len(data)
+
+        self.shuffled_index[:] = self.dataset.shared_shuffled_index[:]
+        print ("R" + str(self.rank) + " updated shuffled_index, [0] is : " + str(self.shuffled_index[0]))
         print ("Number of buffers: " + str(num_buffers))
 
         while 1:
@@ -120,8 +112,10 @@ class IOdaemon:
                 self.file_index += 1
                 if self.file_index == self.num_local_files:
                     self.file_index = 0
-                    if self.do_shuffling == 1:
-                        self.shuffle()
+                    if self.do_shuffle == 1:
+                        cv.wait()
+                        self.shuffled_index[:] = self.dataset.shared_shuffled_index[:]
+                        print ("R" + str(self.rank) + " updated shuffled_index, [0] is : " + str(self.shuffled_index[0]))
             cv.notify()
             while finish.value == 0 and num_cached_files.value == num_buffers:
                 cv.wait()

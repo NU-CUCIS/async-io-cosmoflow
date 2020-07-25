@@ -15,12 +15,12 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.optimizers.schedules import PiecewiseConstantDecay
 
 class Trainer:
-    def __init__ (self, model, io_daemon, dataset = None, num_epochs = 1,
-                  checkpoint_dir = "./checkpoint", do_checkpoint = 0):
-        # Initialize Horovod.tensorflow.
+    def __init__ (self, model, io_daemon, dataset = None, do_shuffle = 0,
+                  num_epochs = 1, checkpoint_dir = "./checkpoint", do_checkpoint = 0):
         self.rank = MPI.COMM_WORLD.Get_rank()
         self.num_epochs = num_epochs
         self.dataset = dataset
+        self.do_shuffle = do_shuffle
         self.io_daemon = io_daemon
         model = model.build_model()
         model.summary()
@@ -64,6 +64,9 @@ class Trainer:
             self.dataset.train_file_index = 0
             loss_mean = Mean()
             self.start_time = time.perf_counter()
+
+            if self.do_shuffle == 1:
+                self.dataset.shuffle()
 
             # Train the model.
             for i in tqdm(range(self.dataset.num_train_batches)):

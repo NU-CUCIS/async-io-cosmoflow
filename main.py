@@ -11,6 +11,7 @@ from feeder_tf import cosmoflow_tf
 from train import Trainer
 from io_daemon import IOdaemon
 import multiprocessing as mp
+import numpy as np
 import horovod.tensorflow as hvd
 
 def get_parser():
@@ -76,11 +77,12 @@ if __name__ == "__main__":
                            batch_size = args.batch_size)
 
     # Initialize the I/O daemon.
-    async_io_module = IOdaemon(dataset, args.cache_size, args.file_shuffle)
+    async_io_module = IOdaemon(dataset, args.file_shuffle, args.cache_size)
     trainer = Trainer(cosmo_model,
                       async_io_module,
                       dataset,
-                      args.epochs,
+                      do_shuffle = args.file_shuffle,
+                      num_epochs = args.epochs,
                       do_checkpoint = args.checkpoint)
 
     io_process = mp.Process(target = async_io_module.run,

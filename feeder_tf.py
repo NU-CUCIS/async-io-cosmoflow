@@ -12,12 +12,14 @@ import numpy as np
 import h5py
 import math
 from mpi4py import MPI
+import multiprocessing as mp
 
 class cosmoflow_tf:
     def __init__ (self, yaml_file, lock, cv,
                   num_cached_files,
                   num_cached_samples,
                   data, label, num_samples,
+                  do_shuffle = 0,
                   batch_size = 4):
         self.comm = MPI.COMM_WORLD
         self.size = self.comm.Get_size()
@@ -33,6 +35,7 @@ class cosmoflow_tf:
         self.batch_size = batch_size
         self.read_index = 0
         self.rng = np.random.default_rng()
+        self.do_shuffle = do_shuffle
         self.num_cached_train_batches = 0
         self.num_cached_valid_batches = 0
         self.train_file_index = 0
@@ -86,7 +89,9 @@ class cosmoflow_tf:
             for file_path in self.valid_files:
                 print (file_path)
 
-        num_local_files = int(math.floor(len(self.train_files) / self.size))
+        self.num_train_files = len(self.train_files)
+        self.shared_shuffled_index = mp.RawArray('i', self.num_train_files)
+        num_local_files = int(math.floor(self.num_train_files / self.size))
         self.num_train_batches = int(self.batches_per_file * num_local_files)
         print ("Number of training batches in the given " + str(num_local_files) +
                " files: " + str(self.num_train_batches))
@@ -109,6 +114,19 @@ class cosmoflow_tf:
         self.num_valid_batches = int(math.floor(self.num_valid_batches / self.batch_size))
         print ("Number of validation batches in the given " + str(len(self.valid_files)) +
                " files: " + str(self.num_valid_batches))
+
+    def shuffle (self):
+        # Shuffle the file index.
+        shuffled_index = np.arange(self.num_train_files)
+        if self.rank == 0:
+            self.rng.shuffle(shuffled_index)
+        self.comm.Bcast(shuffled_index, root = 0) 
+        print ("R" + str(self.rank) + " shuffled the files... the first file ID is " +
+               str(shuffled_index[0]))
+        self.lock.acquire()
+        self.shared_shuffled_index[:] = shuffled_index[:]
+        self.cv.notify()
+        self.lock.release()
 
     def read_train_samples (self, batch_id):
         self.lock.acquire()
