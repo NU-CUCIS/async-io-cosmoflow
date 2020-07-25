@@ -58,6 +58,7 @@ if __name__ == "__main__":
     else:
         num_buffers = 2
 
+    print ("File shuffling: " + str(args.file_shuffle))
     data = []
     label = []
     num_samples = []
@@ -75,13 +76,12 @@ if __name__ == "__main__":
                            batch_size = args.batch_size)
 
     # Initialize the I/O daemon.
-    async_io_module = IOdaemon(dataset, args.cache_size)
+    async_io_module = IOdaemon(dataset, args.cache_size, args.file_shuffle)
     trainer = Trainer(cosmo_model,
                       async_io_module,
                       dataset,
                       args.epochs,
-                      do_checkpoint = args.checkpoint,
-                      do_file_shuffle = args.file_shuffle)
+                      do_checkpoint = args.checkpoint)
 
     io_process = mp.Process(target = async_io_module.run,
                             args = (lock, cv, finish,
