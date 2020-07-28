@@ -7,7 +7,7 @@ import tensorflow as tf
 import time
 import argparse
 from model import model
-from feeder_tf import cosmoflow_tf
+from feeder import cosmoflow
 from train import Trainer
 from io_daemon import IOdaemon
 import multiprocessing as mp
@@ -28,6 +28,8 @@ def get_parser():
                         help = "cache size with respect to the number of samples")
     parser.add_argument("-f", "--file_shuffle", type = int, default = 0,
                         help = "shuffle the files across the processes")
+    parser.add_argument("-r", "--record_results", type = int, default = 0,
+                        help = "write the accuracy and loss values into files")
 
     args = parser.parse_args()
     return args
@@ -70,11 +72,11 @@ if __name__ == "__main__":
 
     # Initialize model, dataset, and trainer.
     cosmo_model = model()
-    dataset = cosmoflow_tf("test.yaml", lock, cv,
-                           num_cached_files,
-                           num_cached_samples,
-                           data, label, num_samples,
-                           batch_size = args.batch_size)
+    dataset = cosmoflow("test.yaml", lock, cv,
+                        num_cached_files,
+                        num_cached_samples,
+                        data, label, num_samples,
+                        batch_size = args.batch_size)
 
     # Initialize the I/O daemon.
     async_io_module = IOdaemon(dataset, args.file_shuffle, args.cache_size)
@@ -83,7 +85,8 @@ if __name__ == "__main__":
                       dataset,
                       do_shuffle = args.file_shuffle,
                       num_epochs = args.epochs,
-                      do_checkpoint = args.checkpoint)
+                      do_checkpoint = args.checkpoint,
+                      do_record_results = args.record_results)
 
     io_process = mp.Process(target = async_io_module.run,
                             args = (lock, cv, finish,

@@ -5,10 +5,10 @@ Northwestern University
 '''
 import time
 from mpi4py import MPI
+from tqdm import tqdm
 import tensorflow as tf
 import multiprocessing as mp
 import horovod.tensorflow as hvd
-from tqdm import tqdm
 from tensorflow.keras.losses import MeanSquaredError
 from tensorflow.keras.metrics import Mean
 from tensorflow.keras.optimizers import Adam
@@ -16,11 +16,12 @@ from tensorflow.keras.optimizers.schedules import PiecewiseConstantDecay
 
 class Trainer:
     def __init__ (self, model, io_daemon, dataset = None, do_shuffle = 0,
-                  num_epochs = 1, checkpoint_dir = "./checkpoint", do_checkpoint = 0):
+                  num_epochs = 1, checkpoint_dir = "./checkpoint", do_checkpoint = 0, do_record_results = 0):
         self.rank = MPI.COMM_WORLD.Get_rank()
         self.num_epochs = num_epochs
         self.dataset = dataset
         self.do_shuffle = do_shuffle
+        self.do_record_results = do_record_results
         self.io_daemon = io_daemon
         model = model.build_model()
         model.summary()
@@ -96,14 +97,15 @@ class Trainer:
                    " validation loss = " + str(average_loss) +\
                    " training timing: " + str(timing) + " sec")
 
-            # Write the loss values to the output files.
-            if self.rank == 0:
-                f = open("loss-train.txt", "a")
-                f.write(str(train_loss.numpy()) + "\n")
-                f.close()
-                f = open("loss-valid.txt", "a")
-                f.write(str(average_loss) + "\n")
-                f.close()
+            if self.record_results == 1:
+                # Write the loss values to the output files.
+                if self.rank == 0:
+                    f = open("loss-train.txt", "a")
+                    f.write(str(train_loss.numpy()) + "\n")
+                    f.close()
+                    f = open("loss-valid.txt", "a")
+                    f.write(str(average_loss) + "\n")
+                    f.close()
 
     def evaluate (self, dataset):
         self.dataset.valid_file_index = 0

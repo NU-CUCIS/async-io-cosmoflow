@@ -14,7 +14,7 @@ import math
 from mpi4py import MPI
 import multiprocessing as mp
 
-class cosmoflow_tf:
+class cosmoflow:
     def __init__ (self, yaml_file, lock, cv,
                   num_cached_files,
                   num_cached_samples,
