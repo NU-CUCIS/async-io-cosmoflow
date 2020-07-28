@@ -10,11 +10,11 @@
 
 ulimit -c unlimited
 
-srun -n 64 -c 10 python3 main.py --epochs=100 \
+srun -n 64 -c 10 python3 main.py --epochs=3 \
                                  --batch_size=4 \
                                  --overlap=1 \
-                                 --checkpoint=1 \
-                                 --cache_size=0 \
-                                 --file_shuffle=0 \
+                                 --checkpoint=0 \
+                                 --cache_size=32 \
+                                 --file_shuffle=1 \
                                  --record_results=0 \
                                  --evaluate=0
