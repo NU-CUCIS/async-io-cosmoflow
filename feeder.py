@@ -90,13 +90,11 @@ class cosmoflow:
                 print (file_path)
 
         self.num_train_files = len(self.train_files)
-        self.num_local_files = int(math.floor(self.num_train_files / self.size))
-        self.num_train_batches = int(self.batches_per_file * self.num_local_files)
-        print ("Number of training batches in the given " + str(self.num_local_files) +
-               " files: " + str(self.num_train_batches))
-
-        # Initialize a shared array for shuffled file index.
         self.shared_shuffled_index = mp.RawArray('i', self.num_train_files)
+        num_local_files = int(math.floor(self.num_train_files / self.size))
+        self.num_train_batches = int(self.batches_per_file * num_local_files)
+        print ("Number of training batches in the given " + str(num_local_files) +
+               " files: " + str(self.num_train_batches))
 
         # Calculate the local file offsets and lengths.
         num_local_valid_files = int(math.floor(len(self.valid_files) / self.size))

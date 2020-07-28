@@ -5,10 +5,10 @@ Northwestern University
 '''
 import time
 from mpi4py import MPI
-from tqdm import tqdm
 import tensorflow as tf
 import multiprocessing as mp
 import horovod.tensorflow as hvd
+from tqdm import tqdm
 from tensorflow.keras.losses import MeanSquaredError
 from tensorflow.keras.metrics import Mean
 from tensorflow.keras.optimizers import Adam
@@ -16,19 +16,19 @@ from tensorflow.keras.optimizers.schedules import PiecewiseConstantDecay
 
 class Trainer:
     def __init__ (self, model, io_daemon, dataset = None, do_shuffle = 0,
-                  num_epochs = 1, checkpoint_dir = "./checkpoint", do_checkpoint = 0,
-                  do_record_results = 0, do_evaluate = 0):
+                  num_epochs = 1, checkpoint_dir = "./checkpoint",
+                  do_checkpoint = 0, do_record_acc = 0, do_evaluate = 0):
         self.rank = MPI.COMM_WORLD.Get_rank()
         self.num_epochs = num_epochs
         self.dataset = dataset
         self.do_shuffle = do_shuffle
-        self.do_record_results = do_record_results
+        self.do_record_acc = do_record_acc
         self.do_evaluate = do_evaluate
         self.io_daemon = io_daemon
         model = model.build_model()
         model.summary()
-        lr = PiecewiseConstantDecay(boundaries = [1600, 2400],
-                                    values = [2e-3, 2e-4, 2e-5])
+        lr = PiecewiseConstantDecay(boundaries = [12800, 19200],
+                                    values = [1e-3, 1e-4, 1e-5])
         self.loss = MeanSquaredError()
         opt = Adam(learning_rate = lr)
         self.do_checkpoint = do_checkpoint
@@ -66,7 +66,7 @@ class Trainer:
             self.checkpoint.epoch.assign_add(1)
             self.dataset.train_file_index = 0
             loss_mean = Mean()
-            start = time.time()
+            self.start_time = time.perf_counter()
 
             if self.do_shuffle == 1:
                 self.dataset.shuffle()
@@ -81,8 +81,7 @@ class Trainer:
                     hvd.broadcast_variables(self.checkpoint.model.variables, root_rank=0)
                     hvd.broadcast_variables(self.checkpoint.optimizer.variables(), root_rank=0)
 
-            end = time.time()
-            timing = end - start
+            timing = time.perf_counter() - self.start_time
             train_loss = loss_mean.result()
             loss_mean.reset_states()
 
@@ -104,15 +103,14 @@ class Trainer:
                        " training loss = " + str(train_loss.numpy()) +\
                        " training timing: " + str(timing) + " sec")
 
-            if self.record_results == 1:
-                # Write the loss values to the output files.
-                if self.rank == 0:
-                    f = open("loss-train.txt", "a")
-                    f.write(str(train_loss.numpy()) + "\n")
-                    f.close()
-                    f = open("loss-valid.txt", "a")
-                    f.write(str(average_loss) + "\n")
-                    f.close()
+            # Write the loss values to the output files.
+            if self.rank == 0 and self.do_record_acc == 1:
+                f = open("loss-train.txt", "a")
+                f.write(str(train_loss.numpy()) + "\n")
+                f.close()
+                f = open("loss-valid.txt", "a")
+                f.write(str(average_loss) + "\n")
+                f.close()
 
     def evaluate (self, dataset):
         self.dataset.valid_file_index = 0
