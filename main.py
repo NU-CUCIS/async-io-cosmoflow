@@ -30,6 +30,8 @@ def get_parser():
                         help = "shuffle the files across the processes")
     parser.add_argument("-r", "--record_results", type = int, default = 0,
                         help = "write the accuracy and loss values into files")
+    parser.add_argument("-v", "--evaluate", type = int, default = 0,
+                        help = "evaluate the model every epoch")
 
     args = parser.parse_args()
     return args
@@ -86,7 +88,8 @@ if __name__ == "__main__":
                       do_shuffle = args.file_shuffle,
                       num_epochs = args.epochs,
                       do_checkpoint = args.checkpoint,
-                      do_record_results = args.record_results)
+                      do_record_results = args.record_results,
+                      do_evaluate = args.evaluate)
 
     io_process = mp.Process(target = async_io_module.run,
                             args = (lock, cv, finish,

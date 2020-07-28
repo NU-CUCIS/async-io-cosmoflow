@@ -16,4 +16,5 @@ srun -n 64 -c 10 python3 main.py --epochs=100 \
                                  --checkpoint=1 \
                                  --cache_size=0 \
                                  --file_shuffle=0 \
-                                 --record_results=0
+                                 --record_results=0 \
+                                 --evaluate=0

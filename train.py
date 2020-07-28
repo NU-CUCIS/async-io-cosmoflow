@@ -16,12 +16,14 @@ from tensorflow.keras.optimizers.schedules import PiecewiseConstantDecay
 
 class Trainer:
     def __init__ (self, model, io_daemon, dataset = None, do_shuffle = 0,
-                  num_epochs = 1, checkpoint_dir = "./checkpoint", do_checkpoint = 0, do_record_results = 0):
+                  num_epochs = 1, checkpoint_dir = "./checkpoint", do_checkpoint = 0,
+                  do_record_results = 0, do_evaluate = 0):
         self.rank = MPI.COMM_WORLD.Get_rank()
         self.num_epochs = num_epochs
         self.dataset = dataset
         self.do_shuffle = do_shuffle
         self.do_record_results = do_record_results
+        self.do_evaluate = do_evaluate
         self.io_daemon = io_daemon
         model = model.build_model()
         model.summary()
@@ -88,14 +90,19 @@ class Trainer:
                 self.checkpoint_manager.save()
 
             # Evaluate the current model using the validation data.
-            valid_loss = self.evaluate(valid_dataset)
-            valid_loss_np = valid_loss.numpy()
-            average_loss = MPI.COMM_WORLD.allreduce(valid_loss_np, MPI.SUM) / MPI.COMM_WORLD.Get_size()
+            if self.do_evaluate == 1:
+                valid_loss = self.evaluate(valid_dataset)
+                valid_loss_np = valid_loss.numpy()
+                average_loss = MPI.COMM_WORLD.allreduce(valid_loss_np, MPI.SUM) / MPI.COMM_WORLD.Get_size()
 
-            print ("Epoch " + str(self.checkpoint.epoch.numpy()) +\
-                   " training loss = " + str(train_loss.numpy()) +\
-                   " validation loss = " + str(average_loss) +\
-                   " training timing: " + str(timing) + " sec")
+                print ("Epoch " + str(self.checkpoint.epoch.numpy()) +\
+                       " training loss = " + str(train_loss.numpy()) +\
+                       " validation loss = " + str(average_loss) +\
+                       " training timing: " + str(timing) + " sec")
+            else:
+                print ("Epoch " + str(self.checkpoint.epoch.numpy()) +\
+                       " training loss = " + str(train_loss.numpy()) +\
+                       " training timing: " + str(timing) + " sec")
 
             if self.record_results == 1:
                 # Write the loss values to the output files.
