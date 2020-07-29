@@ -58,15 +58,15 @@ if __name__ == "__main__":
     num_cached_samples.value = 0
     data_buffer_size = 128 * 128 * 128 * 128 * 12
     label_buffer_size = 128 * 4
+
+    # Initialize the shared memory space between TF process and I/O process.
+    data = []
+    label = []
+    num_samples = []
     if args.overlap == 0:
         num_buffers = 1
     else:
         num_buffers = 2
-
-    print ("File shuffling: " + str(args.file_shuffle))
-    data = []
-    label = []
-    num_samples = []
     for i in range(num_buffers):
         data.append(mp.RawArray('H', data_buffer_size))
         label.append(mp.RawArray('f', label_buffer_size))
@@ -78,7 +78,8 @@ if __name__ == "__main__":
                         num_cached_files,
                         num_cached_samples,
                         data, label, num_samples,
-                        batch_size = args.batch_size)
+                        batch_size = args.batch_size,
+                        cache_size = args.cache_size)
 
     # Initialize the I/O daemon.
     async_io_module = IOdaemon(dataset, args.file_shuffle, args.cache_size)
@@ -101,6 +102,7 @@ if __name__ == "__main__":
     # Start the training.
     trainer.train()
 
+    # Kill the I/O process and finish the program.
     lock.acquire()
     finish.value = 1
     cv.notify()

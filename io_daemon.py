@@ -27,12 +27,7 @@ class IOdaemon:
         self.data_shape = (128, 128, 128, 128, 12)
         self.label_shape = (128, 4)
         self.num_local_files = int(self.num_train_files / self.size)
-        total_cache_size = self.cache_size * self.num_local_files
 
-        if self.cache_size > 0:
-            self.cache_flag = np.zeros((self.num_local_files))
-            self.data_cache = np.zeros((total_cache_size, 128, 128, 128, 12), dtype='uint16')
-            self.label_cache = np.zeros((total_cache_size, 4), dtype='float32')
         print ("R" + str(self.rank) + " will work on "  + str(self.num_local_files) + " files.")
 
     def run (self, lock, cv, finish,
@@ -65,39 +60,14 @@ class IOdaemon:
                 start = time.time()
                 f = h5py.File(self.dataset.train_files[file_index], 'r')
 
-                num_samples[write_index].value = f['3Dmap'].shape[0]
+                num_samples[write_index].value = f['3Dmap'].shape[0] - self.cache_size
                 length = num_samples[write_index].value
 
-                if self.cache_size > 0:
-                    # [I/O] Read the (length - cache_size) samples from the file.
-                    if self.cache_flag[self.file_index] == 0:
-                        # Read the entire samples from the file.
-                        self.cache_flag[self.file_index] = 1
-                        data_np = np.frombuffer(data[write_index], dtype = np.uint16).reshape(self.data_shape)
-                        np.copyto(data_np[0:length], f['3Dmap'][0:length])
-                        label_np = np.frombuffer(label[write_index], dtype = np.float32).reshape(self.label_shape)
-                        np.copyto(label_np[0:length], f['unitPar'][0:length])
-
-                        # Cache the last 'cache_size' samples.
-                        cache_index = self.file_index * self.cache_size
-                        np.copyto(self.data_cache[cache_index: cache_index + self.cache_size], data_np[length - self.cache_size:length])
-                        np.copyto(self.label_cache[cache_index: cache_index + self.cache_size], label_np[length - self.cache_size:length])
-                    else:
-                        # Read only 'length - cache_size' samples.
-                        data_np = np.frombuffer(data[write_index], dtype = np.uint16).reshape(self.data_shape)
-                        np.copyto(data_np[0:length - self.cache_size], f['3Dmap'][0:length - self.cache_size])
-                        label_np = np.frombuffer(label[write_index], dtype = np.float32).reshape(self.label_shape)
-                        np.copyto(label_np[0:length - self.cache_size], f['unitPar'][0:length - self.cache_size])
-
-                        # Copy the cached data into the shared buffer.
-                        cache_index = self.file_index * self.cache_size
-                        np.copyto(data_np[length - self.cache_size:length], self.data_cache[cache_index: cache_index + self.cache_size])
-                        np.copyto(label_np[length - self.cache_size:length], self.label_cache[cache_index: cache_index + self.cache_size])
-                else:
-                    data_np = np.frombuffer(data[write_index], dtype = np.uint16).reshape(self.data_shape)
-                    np.copyto(data_np[0:length], f['3Dmap'][0:length])
-                    label_np = np.frombuffer(label[write_index], dtype = np.float32).reshape(self.label_shape)
-                    np.copyto(label_np[0:length], f['unitPar'][0:length])
+                # Read only 'length - cache_size' samples.
+                data_np = np.frombuffer(data[write_index], dtype = np.uint16).reshape(self.data_shape)
+                np.copyto(data_np[0:length], f['3Dmap'][0:length])
+                label_np = np.frombuffer(label[write_index], dtype = np.float32).reshape(self.label_shape)
+                np.copyto(label_np[0:length], f['unitPar'][0:length])
 
                 f.close()
                 end = time.time()
@@ -113,7 +83,6 @@ class IOdaemon:
                 if self.file_index == self.num_local_files:
                     self.file_index = 0
                     if self.do_shuffle == 1:
-                        #cv.wait()
                         self.shuffled_index[:] = self.dataset.shared_shuffled_index[:]
                         print ("R" + str(self.rank) + " updated shuffled_index, [0] is : " + str(self.shuffled_index[0]))
             cv.notify()
