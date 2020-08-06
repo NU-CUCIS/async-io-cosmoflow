@@ -24,6 +24,8 @@ def get_parser():
                         help = "0: do not checkpoint the model, 1: checkpoint the model")
     parser.add_argument("-e", "--epochs", type = int, default = 1,
                         help = "number of epochs")
+    parser.add_argument("-k", "--buffer_size", type = int, default = 128,
+                        help = "buffer size with respect to the number of samples")
     parser.add_argument("-c", "--cache_size", type = int, default = 0,
                         help = "cache size with respect to the number of samples")
     parser.add_argument("-f", "--file_shuffle", type = int, default = 0,
@@ -79,10 +81,15 @@ if __name__ == "__main__":
                         num_cached_samples,
                         data, label, num_samples,
                         batch_size = args.batch_size,
+                        buffer_size = args.buffer_size,
                         cache_size = args.cache_size)
 
     # Initialize the I/O daemon.
-    async_io_module = IOdaemon(dataset, args.file_shuffle, args.cache_size)
+    async_io_module = IOdaemon(dataset,
+                               args.file_shuffle,
+                               args.buffer_size,
+                               args.cache_size)
+
     trainer = Trainer(cosmo_model,
                       async_io_module,
                       dataset,
