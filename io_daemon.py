@@ -61,10 +61,12 @@ class IOdaemon:
                     file_index = self.shuffled_index[self.file_index + self.offset]
 
                     # Open the target file.
+                    start = time.time()
                     f = h5py.File(self.dataset.train_files[file_index], 'r')
 
+                    file_len = f['3Dmap'].shape[0]
                     read_off = self.in_file_off
-                    read_len = min (self.buffer_size - buf_off, f['3Dmap'].shape[0] - read_off)
+                    read_len = min (self.buffer_size - buf_off, file_len - read_off)
 
                     # Read
                     data_np = np.frombuffer(data[write_index], dtype = np.uint16).reshape(self.data_shape)
@@ -72,11 +74,17 @@ class IOdaemon:
                     label_np = np.frombuffer(label[write_index], dtype = np.float32).reshape(self.label_shape)
                     np.copyto(label_np[buf_off:buf_off + read_len], f['unitPar'][read_off:read_off + read_len])
 
+                    f.close()
+                    end = time.time()
+                    print ("R" + str(self.rank) + " read " + str(read_len) +\
+                           " samples from " + str(self.dataset.train_files[file_index]) +\
+                           " and it took " + str(end - start) + " secs")
+
                     # Update the offsets.
                     buf_off += read_len
                     self.in_file_off += read_len
                     # If one file has been all consumed, go for the next local file.
-                    if self.in_file_off == f['3Dmap'].shape[0]:
+                    if self.in_file_off == file_len:
                         self.in_file_off = 0
                         self.file_index += 1
                         # If all the local files have been traversed over,
