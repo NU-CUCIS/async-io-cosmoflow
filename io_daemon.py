@@ -26,8 +26,8 @@ class IOdaemon:
         self.num_valid_files = len(dataset.valid_files)
         self.file_index = 0
         self.offset = int(self.num_train_files / self.size) * self.rank
-        self.data_shape = (128, 128, 128, 128, 12)
-        self.label_shape = (128, 4)
+        self.data_shape = (self.buffer_size, 128, 128, 128, 12)
+        self.label_shape = (self.buffer_size, 4)
         self.num_local_files = int(self.num_train_files / self.size)
 
         print ("R" + str(self.rank) + " will work on "  + str(self.num_local_files) + " files.")

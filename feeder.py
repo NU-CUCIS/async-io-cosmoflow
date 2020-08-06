@@ -44,8 +44,8 @@ class cosmoflow:
         self.num_cached_valid_batches = 0
         self.train_file_index = 0
         self.valid_file_index = 0
-        self.data_shape = (128, 128, 128, 128, 12)
-        self.label_shape = (128, 4)
+        self.data_shape = (self.buffer_size, 128, 128, 128, 12)
+        self.label_shape = (self.buffer_size, 4)
         self.file_index = 0
 
         print ("Buffer size: " + str(self.buffer_size) + " samples")

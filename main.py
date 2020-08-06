@@ -34,6 +34,8 @@ def get_parser():
                         help = "write the loss and accuracy into output files")
     parser.add_argument("-v", "--evaluate", type = int, default = 0,
                         help = "evaluate the model after every epoch")
+    parser.add_argument("-y", "--config", default = "test.yaml",
+                        help = "yaml file that describes the input data")
 
     args = parser.parse_args()
     return args
@@ -58,8 +60,8 @@ if __name__ == "__main__":
     finish.value = 0
     num_cached_files.value = 0
     num_cached_samples.value = 0
-    data_buffer_size = 128 * 128 * 128 * 128 * 12
-    label_buffer_size = 128 * 4
+    data_buffer_size = args.buffer_size * 128 * 128 * 128 * 12
+    label_buffer_size = args.buffer_size * 4
 
     # Initialize the shared memory space between TF process and I/O process.
     data = []
@@ -76,7 +78,7 @@ if __name__ == "__main__":
 
     # Initialize model, dataset, and trainer.
     cosmo_model = model()
-    dataset = cosmoflow("test.yaml", lock, cv,
+    dataset = cosmoflow(args.config, lock, cv,
                         num_cached_files,
                         num_cached_samples,
                         data, label, num_samples,
