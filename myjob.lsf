@@ -1,0 +1,18 @@
+#!/bin/bash
+#BSUB -P AST153
+#BSUB -W 00:10
+#BSUB -nnodes 11
+#BSUB -J sunwoo
+#BSUB -o sunwoo.%J
+#BSUB -e sunwoo.%J
+
+#export OMP_NUM_THREADS=32
+jsrun -n64 -a1 -c4 -g1 python3 main.py --epochs=3 \
+                                       --batch_size=4 \
+                                       --overlap=1 \
+                                       --checkpoint=0 \
+                                       --cache_size=0 \
+                                       --file_shuffle=1 \
+                                       --buffer_size=4 \
+                                       --record_acc=0 \
+                                       --evaluate=0
