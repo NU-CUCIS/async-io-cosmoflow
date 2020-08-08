@@ -49,6 +49,9 @@ if __name__ == "__main__":
     for gpu in gpus:
         tf.config.experimental.set_memory_growth(gpu, True)
     if gpus:
+        # On Summit, each resource set can view its own GPUs only.
+        # So, the visible devices should be set to gpu:0 for every process.
+        #tf.config.experimental.set_visible_devices(gpus[0], 'GPU')
         tf.config.experimental.set_visible_devices(gpus[hvd.local_rank()], 'GPU')
 
     # multiprocessing synchronization
