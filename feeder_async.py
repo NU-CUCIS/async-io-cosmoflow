@@ -14,7 +14,7 @@ import math
 from mpi4py import MPI
 import multiprocessing as mp
 
-class cosmoflow:
+class cosmoflow_async:
     def __init__ (self, yaml_file, lock, cv,
                   num_cached_files,
                   num_cached_samples,
@@ -88,20 +88,11 @@ class cosmoflow:
             print ("sourceDir.prj: " + str(self.prj))
             print ("sourceDir.cfs: " + str(self.cfs))
             print ("subDir: " + str(self.subdir))
-            print ("training files")
-            for file_path in self.train_files:
-                print (file_path)
-
-            print ("validation files")
-            for file_path in self.valid_files:
-                print (file_path)
 
         self.num_train_files = len(self.train_files)
         self.shared_shuffled_index = mp.RawArray('i', self.num_train_files)
         self.num_local_files = int(math.floor(self.num_train_files / self.size))
         self.num_train_batches = int(self.batches_per_file * self.num_local_files)
-        print ("Number of training batches in the given " + str(self.num_local_files) +
-               " files: " + str(self.num_train_batches))
 
         # Calculate the local file offsets and lengths.
         num_local_valid_files = int(math.floor(len(self.valid_files) / self.size))
@@ -119,13 +110,11 @@ class cosmoflow:
             f = h5py.File(file_path, 'r')
             self.num_valid_batches += f['unitPar'].shape[0]
         self.num_valid_batches = int(math.floor(self.num_valid_batches / self.batch_size))
-        print ("Number of validation batches in the given " + str(len(self.valid_files)) +
-               " files: " + str(self.num_valid_batches))
+
         self.shuffle()
 
         # Assign a data cache.
         if self.cache_size > 0:
-            print ("number of local files: " + str(self.num_local_files))
             total_cache_size = self.cache_size * self.num_local_files
             self.data_cache = np.zeros((total_cache_size, 128, 128, 128, 12), dtype='uint16')
             self.label_cache = np.zeros((total_cache_size, 4), dtype='float32')
@@ -137,8 +126,6 @@ class cosmoflow:
         if self.rank == 0:
             self.rng.shuffle(self.shuffled_index)
         self.comm.Bcast(self.shuffled_index, root = 0) 
-        print ("R" + str(self.rank) + " shuffled the files... the first file ID is " +
-               str(self.shuffled_index[0]))
         self.lock.acquire()
         self.shared_shuffled_index[:] = self.shuffled_index[:]
         self.cv.notify()
@@ -159,7 +146,6 @@ class cosmoflow:
 
     def read_train_samples (self, batch_id):
         self.lock.acquire()
-        #while self.num_cached_files.value == 0:
         while self.num_cached_samples.value == 0:
             t = time.time()
             print ("R" + str(self.rank) + " okay, getitem will wait... at " + str(t))
@@ -180,28 +166,6 @@ class cosmoflow:
             self.batch_list = np.arange(self.num_cached_train_batches)
             self.rng.shuffle(self.batch_list)
 
-            #num_samples = self.num_samples[self.read_index].value + self.cache_size
-            #self.num_cached_train_batches = int(num_samples / self.batch_size)
-
-            # Copy the cached 'k' samples into the shared buffer.
-            #if self.cache_size > 0:
-            #    cache_index = self.file_index * self.cache_size
-            #    self.file_index += 1
-            #    if self.file_index == self.num_local_files:
-            #        self.file_index = 0
-            #    np.copyto(data_np[num_samples - self.cache_size: num_samples], self.data_cache[cache_index: cache_index + self.cache_size])
-
-            ## Update the mini-batch indices and shuffle it.
-            #self.batch_list = np.arange(self.batches_per_file)
-
-            ## In case the file contains fewer samples than 128,
-            ## fill in the memory buffer with the first samples.
-            #if self.num_cached_train_batches < self.batches_per_file:
-            #    for i in range(self.num_cached_train_batches, self.batches_per_file):
-            #        self.batch_list[i] = i % self.num_cached_train_batches
-            #    self.num_cached_train_batches = self.batches_per_file
-            #self.rng.shuffle(self.batch_list)
-
         # Extract one batch from the buffer.
         self.num_cached_train_batches -= 1
         index = self.batch_list[self.num_cached_train_batches] * self.batch_size
@@ -213,7 +177,6 @@ class cosmoflow:
         # Update the read_index and let I/O module know it.
         if self.num_cached_train_batches == 0:
             self.lock.acquire()
-            #self.num_cached_files.value -= 1
             self.num_cached_samples.value -= self.buffer_size
             self.read_index += 1
             if self.read_index == self.num_buffers:
@@ -241,7 +204,7 @@ class cosmoflow:
         self.num_cached_valid_batches -= 1
         return images, labels
 
-    def tf_read_train_samples (self, batch_id):
+    def tf_read_train_batch (self, batch_id):
         images, labels = tf.py_function(self.read_train_samples, inp=[batch_id], Tout=[tf.float32, tf.float32])
         images.set_shape([self.batch_size, 128,128,128,12])
         labels.set_shape([self.batch_size, 4])
@@ -255,7 +218,7 @@ class cosmoflow:
 
     def train_dataset (self):
         dataset = tf.data.Dataset.from_tensor_slices(np.arange(self.num_train_batches))
-        dataset = dataset.map(self.tf_read_train_samples)
+        dataset = dataset.map(self.tf_read_train_batch)
         dataset = dataset.repeat()
         return dataset.__iter__()
 

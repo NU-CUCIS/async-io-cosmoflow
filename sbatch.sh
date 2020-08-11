@@ -1,6 +1,6 @@
 #!/bin/bash  -l
 
-#SBATCH -t 01:00:00
+#SBATCH -t 00:10:00
 #SBATCH --qos=regular
 #SBATCH --nodes=8
 #SBATCH --constraint=gpu
@@ -11,6 +11,7 @@
 ulimit -c unlimited
 
 export MPICH_MAX_THREAD_SAFETY=multiple
+
 srun -n 64 -c 10 python3 main.py --epochs=3 \
                                  --batch_size=4 \
                                  --overlap=1 \
@@ -20,59 +21,5 @@ srun -n 64 -c 10 python3 main.py --epochs=3 \
                                  --file_shuffle=1 \
                                  --record_acc=0 \
                                  --config="test.yaml" \
-                                 --evaluate=0
-
-srun -n 64 -c 10 python3 main.py --epochs=3 \
-                                 --batch_size=4 \
-                                 --overlap=1 \
-                                 --checkpoint=0 \
-                                 --cache_size=0 \
-                                 --buffer_size=64 \
-                                 --file_shuffle=1 \
-                                 --record_acc=0 \
-                                 --config="test2.yaml" \
-                                 --evaluate=0
-
-srun -n 64 -c 10 python3 main.py --epochs=3 \
-                                 --batch_size=4 \
-                                 --overlap=1 \
-                                 --checkpoint=0 \
-                                 --cache_size=0 \
-                                 --buffer_size=32 \
-                                 --file_shuffle=1 \
-                                 --record_acc=0 \
-                                 --config="test.yaml" \
-                                 --evaluate=0
-
-srun -n 64 -c 10 python3 main.py --epochs=3 \
-                                 --batch_size=4 \
-                                 --overlap=1 \
-                                 --checkpoint=0 \
-                                 --cache_size=0 \
-                                 --buffer_size=16 \
-                                 --file_shuffle=1 \
-                                 --record_acc=0 \
-                                 --config="test2.yaml" \
-                                 --evaluate=0
-
-srun -n 64 -c 10 python3 main.py --epochs=3 \
-                                 --batch_size=4 \
-                                 --overlap=1 \
-                                 --checkpoint=0 \
-                                 --cache_size=0 \
-                                 --buffer_size=8 \
-                                 --file_shuffle=1 \
-                                 --record_acc=0 \
-                                 --config="test.yaml" \
-                                 --evaluate=0
-
-srun -n 64 -c 10 python3 main.py --epochs=3 \
-                                 --batch_size=4 \
-                                 --overlap=1 \
-                                 --checkpoint=0 \
-                                 --cache_size=0 \
-                                 --buffer_size=4 \
-                                 --file_shuffle=1 \
-                                 --record_acc=0 \
-                                 --config="test2.yaml" \
-                                 --evaluate=0
+                                 --evaluate=0 \
+                                 --async_io=1

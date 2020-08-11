@@ -7,7 +7,8 @@ import tensorflow as tf
 import time
 import argparse
 from model import model
-from feeder import cosmoflow
+from feeder_async import cosmoflow_async
+from feeder_sync import cosmoflow_sync
 from train import Trainer
 from io_daemon import IOdaemon
 import multiprocessing as mp
@@ -36,6 +37,8 @@ def get_parser():
                         help = "evaluate the model after every epoch")
     parser.add_argument("-y", "--config", default = "test.yaml",
                         help = "yaml file that describes the input data")
+    parser.add_argument("-a", "--async_io", type = int, default = 1,
+                        help = "asynchronous I/O module")
 
     args = parser.parse_args()
     return args
@@ -81,13 +84,22 @@ if __name__ == "__main__":
 
     # Initialize model, dataset, and trainer.
     cosmo_model = model()
-    dataset = cosmoflow(args.config, lock, cv,
-                        num_cached_files,
-                        num_cached_samples,
-                        data, label, num_samples,
-                        batch_size = args.batch_size,
-                        buffer_size = args.buffer_size,
-                        cache_size = args.cache_size)
+    if args.async_io == 1:
+        dataset = cosmoflow_async(args.config, lock, cv,
+                                  num_cached_files,
+                                  num_cached_samples,
+                                  data, label, num_samples,
+                                  batch_size = args.batch_size,
+                                  buffer_size = args.buffer_size,
+                                  cache_size = args.cache_size)
+    else:
+        dataset = cosmoflow_sync(args.config, lock, cv,
+                                 num_cached_files,
+                                 num_cached_samples,
+                                 data, label, num_samples,
+                                 batch_size = args.batch_size,
+                                 buffer_size = args.buffer_size,
+                                 cache_size = args.cache_size)
 
     # Initialize the I/O daemon.
     async_io_module = IOdaemon(dataset,
@@ -104,20 +116,22 @@ if __name__ == "__main__":
                       do_record_acc = args.record_acc,
                       do_evaluate = args.evaluate)
 
-    io_process = mp.Process(target = async_io_module.run,
-                            args = (lock, cv, finish,
-                                    num_cached_files,
-                                    num_cached_samples,
-                                    data, label, num_samples))
-    io_process.start()
+    if args.async_io == 1:
+        io_process = mp.Process(target = async_io_module.run,
+                                args = (lock, cv, finish,
+                                        num_cached_files,
+                                        num_cached_samples,
+                                        data, label, num_samples))
+        io_process.start()
 
     # Start the training.
     trainer.train()
 
     # Kill the I/O process and finish the program.
-    lock.acquire()
-    finish.value = 1
-    cv.notify()
-    lock.release()
-    io_process.join()
+    if args.async_io == 1:
+        lock.acquire()
+        finish.value = 1
+        cv.notify()
+        lock.release()
+        io_process.join()
     print ("All done!")

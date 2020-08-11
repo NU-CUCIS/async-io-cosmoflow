@@ -15,8 +15,8 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.optimizers.schedules import PiecewiseConstantDecay
 
 class Trainer:
-    def __init__ (self, model, io_daemon, dataset = None, do_shuffle = 0,
-                  num_epochs = 1, checkpoint_dir = "./checkpoint",
+    def __init__ (self, model, io_daemon, dataset = None,
+                  do_shuffle = 0, num_epochs = 1, checkpoint_dir = "./checkpoint",
                   do_checkpoint = 0, do_record_acc = 0, do_evaluate = 0):
         self.rank = MPI.COMM_WORLD.Get_rank()
         self.num_epochs = num_epochs
