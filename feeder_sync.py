@@ -100,25 +100,9 @@ class cosmoflow_sync:
         else:
             self.num_local_train_files = common
 
-        self.local_train_files_off = self.rank * common
-        if self.rank < remainder:
-            self.local_train_files_off += self.rank
-        else:
-            self.local_train_files_off += remainder
-        self.local_train_files = self.train_files[self.local_train_files_off:
-                                                  self.local_train_files_off + self.num_local_train_files]
+        self.num_train_batches = int(self.batches_per_file * self.num_local_train_files)
 
-        # Count the number of local samples.
-        self.num_local_train_samples = 0
-        for file_path in self.local_train_files:
-            f = h5py.File(file_path, 'r')
-            self.num_local_train_samples += f['unitPar'].shape[0]
-            f.close()
-
-        print ("R" + str(self.rank) + " has " + str(self.num_local_train_files) + " files and " + \
-               str(self.num_local_train_samples) + " samples for traning")
-
-        # Count the number of local files.
+        # Count the number of local files for validaiton.
         num_local_valid_files = int(math.floor(len(self.valid_files) / self.size))
         local_valid_files_off = num_local_valid_files * self.rank
         if self.rank < (len(self.valid_files) % self.size):
@@ -150,18 +134,21 @@ class cosmoflow_sync:
             self.rng.shuffle(self.shuffled_sample_index)
         self.comm.Bcast(self.shuffled_sample_index, root = 0) 
 
-    def read_sample (self, sample_id):
+    '''
+    Sample-based prefetch
+    '''
+    def read_train_sample (self, sample_id):
         # 1. Find a file.
-        file_index = sample_id.numpy() / 128
+        file_index = int(sample_id.numpy() / 128)
         file_index = self.shuffled_file_index[file_index + self.offset]
         f = h5py.File(self.train_files[file_index], 'r')
 
+        # 2. Read a sample.
         sample_index = sample_id.numpy() % 128
         sample_index = self.shuffled_sample_index[sample_index]
         if sample_index >= f['unitPar'].shape[0]:
             sample_index %= f['unitPar'].shape[0]
 
-        # 2. Read a sample.
         images = f['3Dmap'][sample_index]
         labels = f['unitPar'][sample_index]
         f.close()
@@ -169,7 +156,7 @@ class cosmoflow_sync:
         return images, labels
 
     def tf_read_train_sample (self, sample_id):
-        images, labels = tf.py_function(self.read_sample, inp=[sample_id], Tout=[tf.float32, tf.float32])
+        images, labels = tf.py_function(self.read_train_sample, inp=[sample_id], Tout=[tf.float32, tf.float32])
         return images, labels
 
     def train_dataset (self):
@@ -181,6 +168,43 @@ class cosmoflow_sync:
         #dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
         return dataset.__iter__()
 
+    '''
+    Batch-based prefetch
+    '''
+    def read_train_batch (self, batch_id):
+        # 1. Find a file.
+        file_index = int(batch_id.numpy() / self.batches_per_file)
+        file_index = self.shuffled_file_index[file_index + self.offset]
+        f = h5py.File(self.train_files[file_index], 'r')
+
+        # 2. Read a batch.
+        batch_index = batch_id.numpy() % self.batches_per_file
+        batch_index = self.shuffled_batch_index[batch_index]
+        if (batch_index * self.batch_size) >= f['unitPar'].shape[0]:
+            batch_index %= int(f['unitPar'].shape[0] / self.batch_size)
+        batch_index *= self.batch_size
+
+        images = f['3Dmap'][batch_index: batch_index + self.batch_size]
+        labels = f['unitPar'][batch_index: batch_index + self.batch_size]
+        f.close()
+
+        return images, labels
+
+    def tf_read_train_batch (self, batch_id):
+        images, labels = tf.py_function(self.read_train_batch, inp=[batch_id], Tout=[tf.float32, tf.float32])
+        images.set_shape([self.batch_size, 128,128,128,12])
+        labels.set_shape([self.batch_size, 4])
+        return images, labels
+
+    def train_dataset_batch (self):
+        dataset = tf.data.Dataset.from_tensor_slices(np.arange(self.num_train_batches))
+        dataset = dataset.map(self.tf_read_train_batch)
+        dataset = dataset.repeat()
+        return dataset.__iter__()
+
+    '''
+    Functions for validation
+    '''
     def read_valid_samples (self, batch_id):
         # Read a new file if there are no cached batches.
         if self.num_cached_valid_batches == 0:
