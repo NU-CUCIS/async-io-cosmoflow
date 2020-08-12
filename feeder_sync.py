@@ -150,47 +150,6 @@ class cosmoflow_sync:
             self.rng.shuffle(self.shuffled_sample_index)
         self.comm.Bcast(self.shuffled_sample_index, root = 0) 
 
-    #def read_train_samples (self, batch_id):
-    #    self.lock.acquire()
-    #    while self.num_cached_samples.value == 0:
-    #        t = time.time()
-    #        print ("R" + str(self.rank) + " okay, getitem will wait... at " + str(t))
-    #        self.cv.notify()
-    #        self.cv.wait()
-    #    self.lock.release()
-
-    #    # Reshape the shared buffer (1D vector) to 4D array.
-    #    data_np = np.frombuffer(self.data[self.read_index], dtype = np.uint16).reshape(self.data_shape)
-    #    label_np = np.frombuffer(self.label[self.read_index], dtype = np.float32).reshape(self.label_shape)
-
-    #    # This condition is for the case where a file has been
-    #    # consumed in the previous iteration.
-    #    # Because a new file has been loaded, let's update the
-    #    # number of batches in the buffer.
-    #    if self.num_cached_train_batches == 0:
-    #        self.num_cached_train_batches = int(self.buffer_size / self.batch_size)
-    #        self.batch_list = np.arange(self.num_cached_train_batches)
-    #        self.rng.shuffle(self.batch_list)
-
-    #    # Extract one batch from the buffer.
-    #    self.num_cached_train_batches -= 1
-    #    index = self.batch_list[self.num_cached_train_batches] * self.batch_size
-
-    #    images = data_np[index:index + self.batch_size]
-    #    labels = label_np[index:index + self.batch_size]
-
-    #    # If the current batch is the last batch of the file,
-    #    # Update the read_index and let I/O module know it.
-    #    if self.num_cached_train_batches == 0:
-    #        self.lock.acquire()
-    #        self.num_cached_samples.value -= self.buffer_size
-    #        self.read_index += 1
-    #        if self.read_index == self.num_buffers:
-    #            self.read_index = 0
-    #        self.cv.notify()
-    #        self.lock.release()
-    #    return images, labels
-
     def read_sample (self, sample_id):
         # 1. Find a file.
         file_index = sample_id.numpy() / 128
@@ -207,9 +166,6 @@ class cosmoflow_sync:
         labels = f['unitPar'][sample_index]
         f.close()
 
-        # 3. Update the indices for the next read.
-        #images = np.zeros((128, 128, 128, 12))
-        #labels = np.zeros((4))
         return images, labels
 
     def tf_read_train_sample (self, sample_id):
