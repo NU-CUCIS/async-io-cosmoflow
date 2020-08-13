@@ -20,6 +20,6 @@ srun -n 64 -c 10 python3 main.py --epochs=3 \
                                  --buffer_size=128 \
                                  --file_shuffle=1 \
                                  --record_acc=0 \
-                                 --config="test.yaml" \
+                                 --config="test2.yaml" \
                                  --evaluate=0 \
                                  --async_io=1

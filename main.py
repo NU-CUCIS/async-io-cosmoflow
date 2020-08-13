@@ -77,6 +77,7 @@ if __name__ == "__main__":
         data.append(mp.RawArray('H', data_buffer_size))
         label.append(mp.RawArray('f', label_buffer_size))
         num_samples.append(mp.Value('i'))
+        num_samples[i].value = 0
 
     # Initialize model, dataset, and trainer.
     cosmo_model = model()

@@ -147,7 +147,7 @@ class cosmoflow_async:
         t = time.time()
         self.lock.acquire()
         while self.num_samples[self.read_index].value == 0:
-            print ("R" + str(self.rank) + " okay, getitem will wait... at " + str(t))
+            print ("R" + str(self.rank) + " okay, buffer " + str(self.read_index) + " is empty.. I will wait... at " + str(t))
             self.cv.notify()
             self.cv.wait()
         self.lock.release()
