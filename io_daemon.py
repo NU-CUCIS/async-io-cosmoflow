@@ -8,13 +8,16 @@ import time
 import h5py
 import numpy as np
 import multiprocessing
-from mpi4py import MPI
+#from mpi4py import MPI
+import horovod.tensorflow as hvd
 
 class IOdaemon:
     def __init__ (self, dataset, do_shuffle = 0, buffer_size = 128,  cache_size = 0):
-        self.comm = MPI.COMM_WORLD
-        self.size = self.comm.Get_size()
-        self.rank = self.comm.Get_rank()
+        #self.comm = MPI.COMM_WORLD
+        #self.size = self.comm.Get_size()
+        #self.rank = self.comm.Get_rank()
+        self.size = hvd.size()
+        self.rank = hvd.rank()
         self.rng = np.random.default_rng()
         self.dataset = dataset
         self.shuffled_index = np.arange(self.dataset.num_train_files)
@@ -29,6 +32,7 @@ class IOdaemon:
         self.data_shape = (self.buffer_size, 128, 128, 128, 12)
         self.label_shape = (self.buffer_size, 4)
         self.num_local_files = int(self.num_train_files / self.size)
+        self.write_index = 0
 
         print ("R" + str(self.rank) + " will work on "  + str(self.num_local_files) + " files.")
 
@@ -38,7 +42,6 @@ class IOdaemon:
              data, label, num_samples):
         num_cached_files.value = 0
         num_cached_samples.value = 0
-        prev_write_index = -1
         num_buffers = len(data)
 
         self.shuffled_index[:] = self.dataset.shared_shuffled_index[:]
@@ -46,101 +49,61 @@ class IOdaemon:
         print ("Number of buffers: " + str(num_buffers))
         
         while 1:
-            if finish.value == 1:
-                print ("R" + str(self.rank) + " Okay, I/O process will terminates...")
-                break
+            # Get the current write buffer index.
+            write_index = self.write_index
 
-            if num_cached_samples.value < (num_buffers * self.buffer_size):
-                # Choose a buffer to fill in.
-                write_index = (prev_write_index + 1) % num_buffers
-                prev_write_index = write_index
-
-                buf_off = 0
-                while (buf_off < self.buffer_size):
-                    # Choose a file to read.
-                    file_index = self.shuffled_index[self.file_index + self.offset]
-
-                    # Open the target file.
-                    start = time.time()
-                    f = h5py.File(self.dataset.train_files[file_index], 'r')
-
-                    file_len = f['3Dmap'].shape[0]
-                    read_off = self.in_file_off
-                    read_len = min (self.buffer_size - buf_off, file_len - read_off)
-
-                    # Read
-                    data_np = np.frombuffer(data[write_index], dtype = np.uint16).reshape(self.data_shape)
-                    np.copyto(data_np[buf_off:buf_off + read_len], f['3Dmap'][read_off:read_off + read_len])
-                    label_np = np.frombuffer(label[write_index], dtype = np.float32).reshape(self.label_shape)
-                    np.copyto(label_np[buf_off:buf_off + read_len], f['unitPar'][read_off:read_off + read_len])
-
-                    f.close()
-                    end = time.time()
-                    print ("R" + str(self.rank) + " read " + str(read_len) +\
-                           " samples from " + str(self.dataset.train_files[file_index]) +\
-                           " and it took " + str(end - start) + " secs")
-
-                    # Update the offsets.
-                    buf_off += read_len
-                    self.in_file_off += read_len
-                    # If one file has been all consumed, go for the next local file.
-                    if self.in_file_off == file_len:
-                        self.in_file_off = 0
-                        self.file_index += 1
-                        # If all the local files have been traversed over,
-                        # wrap around the index and get the shuffled index from the main thread.
-                        if self.file_index == self.num_local_files:
-                            self.file_index = 0
-                            if self.do_shuffle == 1:
-                                self.shuffled_index[:] = self.dataset.shared_shuffled_index[:]
-                                print ("R" + str(self.rank) + " updated shuffled_index, [0] is : " + str(self.shuffled_index[0]))
-
+            # If the buffer is not empty, go to sleep.
+            # Otherwise, fill in the buffer and update the write buffer index.
             lock.acquire()
-            if num_cached_samples.value < (num_buffers * self.buffer_size):
-                num_cached_samples.value += self.buffer_size
-            cv.notify()
-            while finish.value == 0 and num_cached_samples.value == (num_buffers * self.buffer_size):
+            while finish.value == 0 and num_samples[write_index].value > 0:
                 cv.wait()
             lock.release()
 
-            #if num_cached_files.value < num_buffers:
-            #    # Choose a file to read.
-            #    file_index = self.shuffled_index[self.file_index + self.offset]
+            if finish.value == 1:
+                break
 
-            #    # Choose a buffer to fill in.
-            #    write_index = (prev_write_index + 1) % num_buffers
-            #    prev_write_index = write_index
+            buf_off = 0
+            while (buf_off < self.buffer_size):
+                # Choose a file to read.
+                file_index = self.shuffled_index[self.file_index + self.offset]
 
-            #    # Read a file into the chosen buffer.
-            #    start = time.time()
-            #    f = h5py.File(self.dataset.train_files[file_index], 'r')
+                # Open the target file.
+                start = time.time()
+                f = h5py.File(self.dataset.train_files[file_index], 'r')
 
-            #    num_samples[write_index].value = f['3Dmap'].shape[0] - self.cache_size
-            #    length = num_samples[write_index].value
+                file_len = f['3Dmap'].shape[0]
+                read_off = self.in_file_off
+                read_len = min (self.buffer_size - buf_off, file_len - read_off)
 
-            #    # Read only 'length - cache_size' samples.
-            #    data_np = np.frombuffer(data[write_index], dtype = np.uint16).reshape(self.data_shape)
-            #    np.copyto(data_np[0:length], f['3Dmap'][0:length])
-            #    label_np = np.frombuffer(label[write_index], dtype = np.float32).reshape(self.label_shape)
-            #    np.copyto(label_np[0:length], f['unitPar'][0:length])
+                # Read
+                data_np = np.frombuffer(data[write_index], dtype = np.uint16).reshape(self.data_shape)
+                np.copyto(data_np[buf_off:buf_off + read_len], f['3Dmap'][read_off:read_off + read_len])
+                label_np = np.frombuffer(label[write_index], dtype = np.float32).reshape(self.label_shape)
+                np.copyto(label_np[buf_off:buf_off + read_len], f['unitPar'][read_off:read_off + read_len])
 
-            #    f.close()
-            #    end = time.time()
-            #    print ("R" + str(self.rank) + " reads " + self.dataset.train_files[file_index] + \
-            #           " into buffer[" + str(write_index) + "] at " + str(start) + \
-            #           " i/o time: " + str(end - start))
+                f.close()
+                end = time.time()
+                print ("R" + str(self.rank) + " read " + str(read_len) +\
+                       " samples from " + str(self.dataset.train_files[file_index]) +\
+                       " and it took " + str(end - start) + " secs")
 
-            # Update the shared status.
-            #lock.acquire()
-            #if num_cached_files.value < num_buffers:
-            #    num_cached_files.value += 1
-            #    self.file_index += 1
-            #    if self.file_index == self.num_local_files:
-            #        self.file_index = 0
-            #        if self.do_shuffle == 1:
-            #            self.shuffled_index[:] = self.dataset.shared_shuffled_index[:]
-            #            print ("R" + str(self.rank) + " updated shuffled_index, [0] is : " + str(self.shuffled_index[0]))
-            #cv.notify()
-            #while finish.value == 0 and num_cached_files.value == num_buffers:
-            #    cv.wait()
-            #lock.release()
+                # Update the offsets.
+                buf_off += read_len
+                self.in_file_off += read_len
+                # If one file has been all consumed, go for the next local file.
+                if self.in_file_off == file_len:
+                    self.in_file_off = 0
+                    self.file_index += 1
+                    # If all the local files have been traversed over,
+                    # wrap around the index and get the shuffled index from the main thread.
+                    if self.file_index == self.num_local_files:
+                        self.file_index = 0
+                        if self.do_shuffle == 1:
+                            self.shuffled_index[:] = self.dataset.shared_shuffled_index[:]
+                            print ("R" + str(self.rank) + " updated shuffled_index, [0] is : " + str(self.shuffled_index[0]))
+
+            lock.acquire()
+            num_samples[write_index].value += self.buffer_size
+            cv.notify()
+            lock.release()
+            self.write_index = (write_index + 1) % num_buffers

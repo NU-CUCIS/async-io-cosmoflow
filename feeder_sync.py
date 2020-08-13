@@ -12,6 +12,7 @@ import numpy as np
 import h5py
 import math
 from mpi4py import MPI
+#import horovod.tensorflow as hvd
 import multiprocessing as mp
 
 class cosmoflow_sync:
@@ -26,6 +27,8 @@ class cosmoflow_sync:
         self.comm = MPI.COMM_WORLD
         self.size = self.comm.Get_size()
         self.rank = self.comm.Get_rank()
+        #self.size = hvd.size()
+        #self.rank = hvd.rank()
         self.lock = lock
         self.cv = cv
         self.num_cached_files = num_cached_files
@@ -125,13 +128,11 @@ class cosmoflow_sync:
     def shuffle (self):
         # Shuffle the file index.
         self.shuffled_file_index = np.arange(self.num_train_files)
-        if self.rank == 0:
-            self.rng.shuffle(self.shuffled_file_index)
+        self.rng.shuffle(self.shuffled_file_index)
         self.comm.Bcast(self.shuffled_file_index, root = 0) 
 
         self.shuffled_sample_index = np.arange(128)
-        if self.rank == 0:
-            self.rng.shuffle(self.shuffled_sample_index)
+        self.rng.shuffle(self.shuffled_sample_index)
         self.comm.Bcast(self.shuffled_sample_index, root = 0) 
 
     '''

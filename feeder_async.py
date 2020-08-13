@@ -12,6 +12,7 @@ import numpy as np
 import h5py
 import math
 from mpi4py import MPI
+#import horovod.tensorflow as hvd
 import multiprocessing as mp
 
 class cosmoflow_async:
@@ -26,6 +27,8 @@ class cosmoflow_async:
         self.comm = MPI.COMM_WORLD
         self.size = self.comm.Get_size()
         self.rank = self.comm.Get_rank()
+        #self.size = hvd.size()
+        #self.rank = hvd.rank()
         self.lock = lock
         self.cv = cv
         self.num_cached_files = num_cached_files
@@ -47,6 +50,7 @@ class cosmoflow_async:
         self.data_shape = (self.buffer_size, 128, 128, 128, 12)
         self.label_shape = (self.buffer_size, 4)
         self.file_index = 0
+        self.waiting = 0
 
         print ("Buffer size: " + str(self.buffer_size) + " samples")
 
@@ -123,8 +127,7 @@ class cosmoflow_async:
     def shuffle (self):
         # Shuffle the file index.
         self.shuffled_index = np.arange(self.num_train_files)
-        if self.rank == 0:
-            self.rng.shuffle(self.shuffled_index)
+        self.rng.shuffle(self.shuffled_index)
         self.comm.Bcast(self.shuffled_index, root = 0) 
         self.lock.acquire()
         self.shared_shuffled_index[:] = self.shuffled_index[:]
@@ -145,13 +148,15 @@ class cosmoflow_async:
             f.close()
 
     def read_train_samples (self, batch_id):
+        t = time.time()
         self.lock.acquire()
-        while self.num_cached_samples.value == 0:
-            t = time.time()
+        while self.num_samples[self.read_index].value == 0:
+        #while self.num_cached_samples.value == 0:
             print ("R" + str(self.rank) + " okay, getitem will wait... at " + str(t))
             self.cv.notify()
             self.cv.wait()
         self.lock.release()
+        self.waiting += (time.time() - t)
 
         # Reshape the shared buffer (1D vector) to 4D array.
         data_np = np.frombuffer(self.data[self.read_index], dtype = np.uint16).reshape(self.data_shape)
@@ -178,6 +183,7 @@ class cosmoflow_async:
         if self.num_cached_train_batches == 0:
             self.lock.acquire()
             self.num_cached_samples.value -= self.buffer_size
+            self.num_samples[self.read_index].value -= self.buffer_size
             self.read_index += 1
             if self.read_index == self.num_buffers:
                 self.read_index = 0

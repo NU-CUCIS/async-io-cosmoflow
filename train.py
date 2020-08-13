@@ -19,6 +19,7 @@ class Trainer:
                   do_shuffle = 0, num_epochs = 1, checkpoint_dir = "./checkpoint",
                   do_checkpoint = 0, do_record_acc = 0, do_evaluate = 0):
         self.rank = MPI.COMM_WORLD.Get_rank()
+        #self.rank = hvd.rank()
         self.num_epochs = num_epochs
         self.dataset = dataset
         self.do_shuffle = do_shuffle
@@ -26,7 +27,7 @@ class Trainer:
         self.do_evaluate = do_evaluate
         self.io_daemon = io_daemon
         model = model.build_model()
-        model.summary()
+        #model.summary()
         lr = PiecewiseConstantDecay(boundaries = [12800, 19200],
                                     values = [1e-3, 1e-4, 1e-5])
         self.loss = MeanSquaredError()
@@ -65,6 +66,7 @@ class Trainer:
 
             self.checkpoint.epoch.assign_add(1)
             self.dataset.train_file_index = 0
+            self.dataset.waiting = 0
             loss_mean = Mean()
             self.start_time = time.perf_counter()
 
@@ -100,6 +102,7 @@ class Trainer:
                        " training timing: " + str(timing) + " sec")
             else:
                 print ("Epoch " + str(self.checkpoint.epoch.numpy()) +\
+                       " waiting time = " + str(self.dataset.waiting) +\
                        " training loss = " + str(train_loss.numpy()) +\
                        " training timing: " + str(timing) + " sec")
 
