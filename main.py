@@ -61,11 +61,7 @@ if __name__ == "__main__":
     lock = mp.Lock()
     cv = mp.Condition(lock = lock)
     finish = mp.Value('i')
-    num_cached_files = mp.Value('i')
-    num_cached_samples = mp.Value('i')
     finish.value = 0
-    num_cached_files.value = 0
-    num_cached_samples.value = 0
     data_buffer_size = args.buffer_size * 128 * 128 * 128 * 12
     label_buffer_size = args.buffer_size * 4
 
@@ -86,16 +82,12 @@ if __name__ == "__main__":
     cosmo_model = model()
     if args.async_io == 1:
         dataset = cosmoflow_async(args.config, lock, cv,
-                                  num_cached_files,
-                                  num_cached_samples,
                                   data, label, num_samples,
                                   batch_size = args.batch_size,
                                   buffer_size = args.buffer_size,
                                   cache_size = args.cache_size)
     else:
         dataset = cosmoflow_sync(args.config, lock, cv,
-                                 num_cached_files,
-                                 num_cached_samples,
                                  data, label, num_samples,
                                  batch_size = args.batch_size,
                                  buffer_size = args.buffer_size,
@@ -119,8 +111,6 @@ if __name__ == "__main__":
     if args.async_io == 1:
         io_process = mp.Process(target = async_io_module.run,
                                 args = (lock, cv, finish,
-                                        num_cached_files,
-                                        num_cached_samples,
                                         data, label, num_samples))
         io_process.start()
 

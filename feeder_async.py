@@ -17,8 +17,6 @@ import multiprocessing as mp
 
 class cosmoflow_async:
     def __init__ (self, yaml_file, lock, cv,
-                  num_cached_files,
-                  num_cached_samples,
                   data, label, num_samples,
                   do_shuffle = 0,
                   batch_size = 4,
@@ -31,8 +29,6 @@ class cosmoflow_async:
         #self.rank = hvd.rank()
         self.lock = lock
         self.cv = cv
-        self.num_cached_files = num_cached_files
-        self.num_cached_samples = num_cached_samples
         self.data = data
         self.label = label
         self.num_samples = num_samples
@@ -151,7 +147,6 @@ class cosmoflow_async:
         t = time.time()
         self.lock.acquire()
         while self.num_samples[self.read_index].value == 0:
-        #while self.num_cached_samples.value == 0:
             print ("R" + str(self.rank) + " okay, getitem will wait... at " + str(t))
             self.cv.notify()
             self.cv.wait()
@@ -182,7 +177,6 @@ class cosmoflow_async:
         # Update the read_index and let I/O module know it.
         if self.num_cached_train_batches == 0:
             self.lock.acquire()
-            self.num_cached_samples.value -= self.buffer_size
             self.num_samples[self.read_index].value -= self.buffer_size
             self.read_index += 1
             if self.read_index == self.num_buffers:

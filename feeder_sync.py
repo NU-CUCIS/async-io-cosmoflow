@@ -17,8 +17,6 @@ import multiprocessing as mp
 
 class cosmoflow_sync:
     def __init__ (self, yaml_file, lock, cv,
-                  num_cached_files,
-                  num_cached_samples,
                   data, label, num_samples,
                   do_shuffle = 0,
                   batch_size = 4,
@@ -31,8 +29,6 @@ class cosmoflow_sync:
         #self.rank = hvd.rank()
         self.lock = lock
         self.cv = cv
-        self.num_cached_files = num_cached_files
-        self.num_cached_samples = num_cached_samples
         self.data = data
         self.label = label
         self.num_samples = num_samples

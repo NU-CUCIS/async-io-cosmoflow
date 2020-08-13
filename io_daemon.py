@@ -37,11 +37,7 @@ class IOdaemon:
         print ("R" + str(self.rank) + " will work on "  + str(self.num_local_files) + " files.")
 
     def run (self, lock, cv, finish,
-             num_cached_files,
-             num_cached_samples,
              data, label, num_samples):
-        num_cached_files.value = 0
-        num_cached_samples.value = 0
         num_buffers = len(data)
 
         self.shuffled_index[:] = self.dataset.shared_shuffled_index[:]
