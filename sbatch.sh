@@ -1,6 +1,6 @@
 #!/bin/bash  -l
 
-#SBATCH -t 00:10:00
+#SBATCH -t 00:05:00
 #SBATCH --qos=regular
 #SBATCH --nodes=8
 #SBATCH --constraint=gpu
@@ -20,6 +20,6 @@ srun -n 64 -c 10 python3 main.py --epochs=3 \
                                  --buffer_size=128 \
                                  --file_shuffle=1 \
                                  --record_acc=0 \
-                                 --config="test2.yaml" \
+                                 --config="test.yaml" \
                                  --evaluate=0 \
                                  --async_io=1

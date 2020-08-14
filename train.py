@@ -15,17 +15,17 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.optimizers.schedules import PiecewiseConstantDecay
 
 class Trainer:
-    def __init__ (self, model, io_daemon, dataset = None,
+    def __init__ (self, model, async_io = 1, dataset = None,
                   do_shuffle = 0, num_epochs = 1, checkpoint_dir = "./checkpoint",
                   do_checkpoint = 0, do_record_acc = 0, do_evaluate = 0):
         self.rank = MPI.COMM_WORLD.Get_rank()
         #self.rank = hvd.rank()
         self.num_epochs = num_epochs
+        self.async_io = async_io
         self.dataset = dataset
         self.do_shuffle = do_shuffle
         self.do_record_acc = do_record_acc
         self.do_evaluate = do_evaluate
-        self.io_daemon = io_daemon
         model = model.build_model()
         #model.summary()
         lr = PiecewiseConstantDecay(boundaries = [12800, 19200],
@@ -75,7 +75,11 @@ class Trainer:
 
             # Train the model.
             for i in tqdm(range(self.dataset.num_train_batches)):
+                if self.async_io == 1:
+                    self.dataset.pre_batch()
                 data, label = train_dataset.next()
+                if self.async_io == 1:
+                    self.dataset.post_batch()
                 loss = self.train_step(data, label)
                 loss_mean(loss)
 
