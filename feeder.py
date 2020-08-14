@@ -20,7 +20,7 @@ class cosmoflow:
                   data, label, num_samples,
                   do_shuffle = 0,
                   batch_size = 4,
-                  buffer_size = 128)
+                  buffer_size = 128):
         self.comm = MPI.COMM_WORLD
         self.size = self.comm.Get_size()
         self.rank = self.comm.Get_rank()
