@@ -87,6 +87,7 @@ class cosmoflow:
 
         self.num_train_files = len(self.train_files)
         self.offset = int(self.num_train_files / self.size) * self.rank
+        self.shared_shuffled_index = mp.RawArray('i', self.num_train_files)
 
         # First, calculate the number of local files.
         common = int(self.num_train_files / self.size)
@@ -124,10 +125,10 @@ class cosmoflow:
         self.shuffled_file_index = np.arange(self.num_train_files)
         self.rng.shuffle(self.shuffled_file_index)
         self.comm.Bcast(self.shuffled_file_index, root = 0) 
+        self.shared_shuffled_index[:] = self.shuffled_file_index[:]
 
         self.shuffled_sample_index = np.arange(self.buffer_size)
         self.rng.shuffle(self.shuffled_sample_index)
-        self.comm.Bcast(self.shuffled_sample_index, root = 0) 
 
     '''
     Training dataset
@@ -140,7 +141,7 @@ class cosmoflow:
         data_np = np.frombuffer(self.data[self.read_index], dtype = np.uint16).reshape(self.data_shape)
         label_np = np.frombuffer(self.label[self.read_index], dtype = np.float32).reshape(self.label_shape)
         image = data_np[sample_index]
-        label = label_lnp[sample_index]
+        label = label_np[sample_index]
 
         return image, label
 
