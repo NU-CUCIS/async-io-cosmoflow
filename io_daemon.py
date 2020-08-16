@@ -50,9 +50,9 @@ class IOdaemon:
 
             if finish.value == 1:
                 break
-
+            
+            buf_off = 0
             if num_samples[write_index].value == 0:
-                buf_off = 0
                 while (buf_off < self.buffer_size):
                     # Choose a file to read.
                     file_index = self.shuffled_index[self.file_index + self.offset]
@@ -93,7 +93,7 @@ class IOdaemon:
                                 print ("R" + str(self.rank) + " updated shuffled_index, [0] is : " + str(self.shuffled_index[0]))
 
             lock.acquire()
-            if num_samples[write_index].value == 0:
+            if buf_off > 0:
                 num_samples[write_index].value = self.buffer_size
                 self.write_index = (write_index + 1) % num_buffers
                 cv.notify()
