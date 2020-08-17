@@ -6,14 +6,14 @@ Northwestern University
 import tensorflow as tf
 import time
 import argparse
+import numpy as np
+import multiprocessing as mp
+import horovod.tensorflow as hvd
 from model import model
-from feeder_async import cosmoflow_async
-from feeder_sync import cosmoflow_sync
 from train import Trainer
 from io_daemon import IOdaemon
-import multiprocessing as mp
-import numpy as np
-import horovod.tensorflow as hvd
+from feeder_sync import cosmoflow_sync
+from feeder_async import cosmoflow_async
 
 def get_parser():
     parser = argparse.ArgumentParser()
