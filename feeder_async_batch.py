@@ -15,12 +15,13 @@ from mpi4py import MPI
 #import horovod.tensorflow as hvd
 import multiprocessing as mp
 
-class cosmoflow:
+class cosmoflow_async:
     def __init__ (self, yaml_file, lock, cv,
                   data, label, num_samples,
                   do_shuffle = 0,
                   batch_size = 4,
-                  buffer_size = 128):
+                  buffer_size = 128,
+                  cache_size = 0):
         self.comm = MPI.COMM_WORLD
         self.size = self.comm.Get_size()
         self.rank = self.comm.Get_rank()
@@ -34,6 +35,7 @@ class cosmoflow:
         self.num_buffers = len(data)
         self.batch_size = batch_size
         self.buffer_size = buffer_size
+        self.cache_size = cache_size
         self.read_index = 0
         self.rng = np.random.default_rng()
         self.do_shuffle = do_shuffle
@@ -44,6 +46,9 @@ class cosmoflow:
         self.data_shape = (self.buffer_size, 128, 128, 128, 12)
         self.label_shape = (self.buffer_size, 4)
         self.file_index = 0
+        self.waiting = 0
+
+        print ("Buffer size: " + str(self.buffer_size) + " samples")
 
         # Parse the given yaml file and get the top dir and file names.
         with open (yaml_file, "r") as f:
@@ -83,24 +88,13 @@ class cosmoflow:
             print ("sourceDir.prj: " + str(self.prj))
             print ("sourceDir.cfs: " + str(self.cfs))
             print ("subDir: " + str(self.subdir))
-        print ("Buffer size: " + str(self.buffer_size) + " samples")
 
         self.num_train_files = len(self.train_files)
-        self.offset = int(self.num_train_files / self.size) * self.rank
         self.shared_shuffled_index = mp.RawArray('i', self.num_train_files)
+        self.num_local_files = int(math.floor(self.num_train_files / self.size))
+        self.num_train_batches = int(self.batches_per_file * self.num_local_files)
 
-        # First, calculate the number of local files.
-        common = int(self.num_train_files / self.size)
-        remainder = self.num_train_files % self.size
-
-        if self.rank < remainder:
-            self.num_local_train_files = common + 1
-        else:
-            self.num_local_train_files = common
-
-        self.num_train_batches = int(self.batches_per_file * self.num_local_train_files)
-
-        # Count the number of local files for validaiton.
+        # Calculate the local file offsets and lengths.
         num_local_valid_files = int(math.floor(len(self.valid_files) / self.size))
         local_valid_files_off = num_local_valid_files * self.rank
         if self.rank < (len(self.valid_files) % self.size):
@@ -115,76 +109,82 @@ class cosmoflow:
         for file_path in self.local_valid_files:
             f = h5py.File(file_path, 'r')
             self.num_valid_batches += f['unitPar'].shape[0]
-            f.close()
         self.num_valid_batches = int(math.floor(self.num_valid_batches / self.batch_size))
 
         self.shuffle()
 
+        # Assign a data cache.
+        if self.cache_size > 0:
+            total_cache_size = self.cache_size * self.num_local_files
+            self.data_cache = np.zeros((total_cache_size, 128, 128, 128, 12), dtype='uint16')
+            self.label_cache = np.zeros((total_cache_size, 4), dtype='float32')
+            self.cache_data()
+
     def shuffle (self):
         # Shuffle the file index.
-        self.shuffled_file_index = np.arange(self.num_train_files)
-        self.rng.shuffle(self.shuffled_file_index)
-        self.comm.Bcast(self.shuffled_file_index, root = 0) 
-        self.shared_shuffled_index[:] = self.shuffled_file_index[:]
+        self.shuffled_index = np.arange(self.num_train_files)
+        self.rng.shuffle(self.shuffled_index)
+        self.comm.Bcast(self.shuffled_index, root = 0) 
+        self.lock.acquire()
+        self.shared_shuffled_index[:] = self.shuffled_index[:]
+        self.cv.notify()
+        self.lock.release()
 
-        self.shuffled_sample_index = np.arange(self.buffer_size)
-        self.rng.shuffle(self.shuffled_sample_index)
+    def cache_data (self):
+        # Go through all the local files reading k samples.
+        offset = int(self.num_train_files / self.size) * self.rank
+        for i in range (self.num_local_files):
+            file_index = self.shuffled_index[offset + i]
+            cache_index = i * self.cache_size
 
-    '''
-    Training dataset
-    '''
-    def read_train_sample (self, sample_id):
-        # Read a random sample from the buffer.
-        sample_index = sample_id.numpy() % self.buffer_size
-        sample_index = self.shuffled_sample_index[sample_index]
+            f = h5py.File(self.train_files[file_index], 'r')
+            num_samples = f['3Dmap'].shape[0]
+            self.data_cache[cache_index: cache_index + self.cache_size] = f['3Dmap'][num_samples - self.cache_size: num_samples]
+            self.label_cache[cache_index: cache_index + self.cache_size] = f['unitPar'][num_samples - self.cache_size: num_samples]
+            f.close()
 
-        data_np = np.frombuffer(self.data[self.read_index], dtype = np.uint16).reshape(self.data_shape)
-        label_np = np.frombuffer(self.label[self.read_index], dtype = np.float32).reshape(self.label_shape)
-        image = data_np[sample_index]
-        label = label_np[sample_index]
-
-        return image, label
-
-    def tf_read_train_sample (self, sample_id):
-        image, label = tf.py_function(self.read_train_sample, inp=[sample_id], Tout=[tf.float32, tf.float32])
-        return image, label
-
-    def train_dataset (self):
-        dataset = tf.data.Dataset.from_tensor_slices(np.arange(self.num_local_train_files * self.samples_per_file))
-        dataset = dataset.map(self.tf_read_train_sample)
-        dataset = dataset.batch(self.batch_size)
-        dataset = dataset.repeat()
-        #dataset = dataset.prefetch(4)
-        #dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
-        return dataset.__iter__()
-
-    def pre_batch (self):
-        # Wait if the current buffer is empty.
+    def read_train_samples (self, batch_id):
+        t = time.time()
         self.lock.acquire()
         while self.num_samples[self.read_index].value == 0:
-            print ("R" + str(self.rank) + " okay, buffer " + str(self.read_index) + " is empty.. I will wait...")
+            print ("R" + str(self.rank) + " okay, buffer " + str(self.read_index) + " is empty.. I will wait... at " + str(t))
             self.cv.notify()
             self.cv.wait()
         self.lock.release()
+        self.waiting += (time.time() - t)
 
+        # Reshape the shared buffer (1D vector) to 4D array.
+        data_np = np.frombuffer(self.data[self.read_index], dtype = np.uint16).reshape(self.data_shape)
+        label_np = np.frombuffer(self.label[self.read_index], dtype = np.float32).reshape(self.label_shape)
+
+        # This condition is for the case where a file has been
+        # consumed in the previous iteration.
+        # Because a new file has been loaded, let's update the
+        # number of batches in the buffer.
         if self.num_cached_train_batches == 0:
             self.num_cached_train_batches = int(self.buffer_size / self.batch_size)
+            self.batch_list = np.arange(self.num_cached_train_batches)
+            self.rng.shuffle(self.batch_list)
 
-    def post_batch (self):
+        # Extract one batch from the buffer.
         self.num_cached_train_batches -= 1
+        index = self.batch_list[self.num_cached_train_batches] * self.batch_size
+
+        images = data_np[index:index + self.batch_size]
+        labels = label_np[index:index + self.batch_size]
+
+        # If the current batch is the last batch of the file,
+        # Update the read_index and let I/O module know it.
         if self.num_cached_train_batches == 0:
             self.lock.acquire()
             self.num_samples[self.read_index].value -= self.buffer_size
-            self.cv.notify()
-            self.lock.release()
-
             self.read_index += 1
             if self.read_index == self.num_buffers:
                 self.read_index = 0
+            self.cv.notify()
+            self.lock.release()
+        return images, labels
 
-    '''
-    Validation dataset
-    '''
     def read_valid_samples (self, batch_id):
         # Read a new file if there are no cached batches.
         if self.num_cached_valid_batches == 0:
@@ -204,11 +204,23 @@ class cosmoflow:
         self.num_cached_valid_batches -= 1
         return images, labels
 
+    def tf_read_train_batch (self, batch_id):
+        images, labels = tf.py_function(self.read_train_samples, inp=[batch_id], Tout=[tf.float32, tf.float32])
+        images.set_shape([self.batch_size, 128,128,128,12])
+        labels.set_shape([self.batch_size, 4])
+        return images, labels
+
     def tf_read_valid_samples (self, batch_id):
         images, labels = tf.py_function(self.read_valid_samples, inp=[batch_id], Tout=[tf.float32, tf.float32])
         images.set_shape([self.batch_size, 128,128,128,12])
         labels.set_shape([self.batch_size, 4])
         return images, labels
+
+    def train_dataset (self):
+        dataset = tf.data.Dataset.from_tensor_slices(np.arange(self.num_train_batches))
+        dataset = dataset.map(self.tf_read_train_batch)
+        dataset = dataset.repeat()
+        return dataset.__iter__()
 
     def valid_dataset (self):
         dataset = tf.data.Dataset.from_tensor_slices(np.arange(self.num_valid_batches))

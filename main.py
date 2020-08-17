@@ -7,8 +7,7 @@ import tensorflow as tf
 import time
 import argparse
 from model import model
-#from feeder_async import cosmoflow_async
-from feeder import cosmoflow
+from feeder_async import cosmoflow_async
 from feeder_sync import cosmoflow_sync
 from train import Trainer
 from io_daemon import IOdaemon
@@ -83,15 +82,10 @@ if __name__ == "__main__":
     # Initialize model, dataset, and trainer.
     cosmo_model = model()
     if args.async_io == 1:
-        #dataset = cosmoflow_async(args.config, lock, cv,
-        #                          data, label, num_samples,
-        #                          batch_size = args.batch_size,
-        #                          buffer_size = args.buffer_size,
-        #                          cache_size = args.cache_size)
-        dataset = cosmoflow(args.config, lock, cv,
-                            data, label, num_samples,
-                            batch_size = args.batch_size,
-                            buffer_size = args.buffer_size)
+        dataset = cosmoflow_async(args.config, lock, cv,
+                                  data, label, num_samples,
+                                  batch_size = args.batch_size,
+                                  buffer_size = args.buffer_size)
     else:
         dataset = cosmoflow_sync(args.config, lock, cv,
                                  data, label, num_samples,
