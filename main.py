@@ -1,7 +1,6 @@
 '''
-Sunwoo Lee
-<sunwoolee1.2014@u.northwestern.edu>
-Northwestern University
+Copyright (C) 2020, Northwestern University and Lawrence Berkeley National Laboratory
+See COPYRIGHT notice in top-level directory.
 '''
 import tensorflow as tf
 import time

@@ -1,12 +1,11 @@
 '''
-Sunwoo Lee
-<sunwoolee1.2014@u.northwestern.edu>
-Northwestern University
+Copyright (C) 2020, Northwestern University and Lawrence Berkeley National Laboratory
+See COPYRIGHT notice in top-level directory.
 '''
 import time
-from mpi4py import MPI
 import tensorflow as tf
 import multiprocessing as mp
+from mpi4py import MPI
 import horovod.tensorflow as hvd
 from tqdm import tqdm
 from tensorflow.keras.losses import MeanSquaredError
