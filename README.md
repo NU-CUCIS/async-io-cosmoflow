@@ -20,8 +20,10 @@ module load tensorflow/gpu-2.2.0-py37
 module load esslurm
 ```
 
-3. Modify the hyper-parameters appropriately and run the job.
+3. Modify the hyper-parameters appropriately and start training.
 
 ## Questions/Comments
   * Sunwoo Lee <sunwoolee1.2014@u.northwestern.edu>
   * Wei-keng Liao <wkliao@northwestern.edu>
+  * Alex Sim <asim@lbl.gov>
+  * John Wu <kwu@lbl.gov>
