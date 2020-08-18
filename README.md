@@ -13,14 +13,22 @@ For scalable parallel training, an asynchronous I/O module has been implemented 
 git clone https://github.com/swblaster/tf2-cosmoflow
 ```
 
-2. Load the modules for using TensorFlow, Horovod, and GPUs on Cori.
-Note that Horovod is embedded in TensorFlow module.
-```
-module load tensorflow/gpu-2.2.0-py37
-module load esslurm
-```
+2. Modify the file path in `test.yaml` file.
 
 3. Modify the hyper-parameters appropriately and start training.
+```
+python3 main.py --epochs=3 \
+                --batch_size=4 \
+                --overlap=1 \
+                --checkpoint=0 \
+                --cache_size=0 \
+                --buffer_size=128 \
+                --file_shuffle=1 \
+                --record_acc=0 \
+                --config="test.yaml" \
+                --evaluate=0 \
+                --async_io=1
+```
 
 ## Questions/Comments
   * Sunwoo Lee <sunwoolee1.2014@u.northwestern.edu>
