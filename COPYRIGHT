@@ -1,4 +1,4 @@
-Copyright (c) 2003 Northwestern University and Lawrence Berkeley National
+Copyright (c) 2020 Northwestern University and Lawrence Berkeley National
 Laboratory All rights reserved.
 
 Portions of this software were developed by the Unidata Program at the
@@ -10,15 +10,16 @@ cost, to use, copy, modify, alter, enhance and distribute this software, and
 any derivative works thereof, and its supporting documentation for any purpose
 whatsoever, provided that this entire notice appears in all copies of the
 software, derivative works and supporting documentation.  Further, Northwestern
-University and Argonne National Laboratory request that the user credit
-Northwestern University and Argonne National Laboratory in any publications
-that result from the use of this software or in any product that includes this
-software.  The names Northwestern University and Argonne National Laboratory,
-however, may not be used in any advertising or publicity to endorse or promote
-any products or commercial entity unless specific written permission is
-obtained from Northwestern University and Argonne National Laboratory. The user
-also understands that Northwestern University and Argonne National Laboratory
-are not obligated to provide the user with any support, consulting, training or
+University and Lawrence Berkeley National Laboratory request that the user
+credit Northwestern University and Lawrence Berkeley National Laboratory in any
+publications that result from the use of this software or in any product that
+includes this software.  The names Northwestern University and Lawrence
+Berkeley National Laboratory, however, may not be used in any advertising or
+publicity to endorse or promote any products or commercial entity unless
+specific written permission is obtained from Northwestern University and
+Lawrence Berkeley National Laboratory. The user also understands that
+Northwestern University and Lawrence Berkeley National Laboratory are not
+obligated to provide the user with any support, consulting, training or
 assistance of any kind with regard to the use, operation and performance of
 this software nor to provide the user with any updates, revisions, new versions
 or "bug fixes."
