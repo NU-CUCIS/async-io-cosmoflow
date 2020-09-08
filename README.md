@@ -1,7 +1,13 @@
 # tf2-cosmoflow
 This program is a CosmoFlow implementation with TensorFlow 2.
-The training is parallelized using Horovod.
+The original CosmoFlow paper has been published in SC18 [1].
+This program implements LBANN model proposed in [2].
+The data parallel training is parallelized using Horovod [3].
 For scalable parallel training, an asynchronous I/O module has been implemented based on python multiprocessing package.
+
+* [1]: [Mathuriya et al., CosmoFlow: Using Deep Learning to Learn the Universe at Scale, SC 18](https://arxiv.org/abs/1808.04728)
+* [2]: [Oyama et al., Toward Training a Large 3D Cosmological CNN with Hybrid Parallelization, 2019](https://www.osti.gov/servlets/purl/1548314)
+* [3]: [Sergeev et al., Horovod: fast and easy distributed deep learning in TensorFlow](https://github.com/horovod/horovod#citation)
 
 ## Software Requirements
   * TensorFlow > 2.0.0 (2.2.0 is recommended)
