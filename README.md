@@ -28,7 +28,27 @@ git clone https://github.com/swblaster/tf2-cosmoflow
 * `splitIdx/train`: the indices of the training files.
 * `splitIdx/test`: the indices of the test files.
 
-3. Modify the hyper-parameters appropriately and start training.
+The below is an example `test.yaml` file.
+```
+frameCnt: 128
+numPar: 4
+parNames: [Omega_m, sigma_8, N_spec, H_0]
+sourceDir: {
+  prj: /global/cscratch1/sd/slz839/cosmoflow_c1/,
+subDir: multiScale_tryG/
+splitIdx:
+  test: [100, 101, 102, 103, 104, 105, 106, 107]
+  train: [20, 21, 22, 23, 24, 25, 26, 27,
+          30, 31, 32, 33, 34, 35, 36, 37,
+          40, 41, 42, 43, 44, 45, 46, 47,
+          50, 51, 52, 53, 54, 55, 56, 57,
+          60, 61, 62, 63, 64, 65, 66, 67,
+          70, 71, 72, 73, 74, 75, 76, 77,
+          80, 81, 82, 83, 84, 85, 86, 87,
+          90, 91, 92, 93, 94, 95, 96, 97]
+```
+
+3. Run training with appropriate hyper-parameter settings.
 * `--epochs`: the number of epochs for training.
 * `--batch_size`: the local batch size (the batch size for each process).
 * `--overlap`: (0:off / 1:on) disable/enable the I/O overlap feature.
