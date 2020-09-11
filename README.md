@@ -49,6 +49,9 @@ splitIdx:
 ```
 
 3. Run training with appropriate hyper-parameter settings.
+For example, the command can be executed by running `sbatch.sh` on Cori at NERSC.
+The `myjob.lsf` is the script for training on Summit at OLCF.
+
 * `--epochs`: the number of epochs for training.
 * `--batch_size`: the local batch size (the batch size for each process).
 * `--overlap`: (0:off / 1:on) disable/enable the I/O overlap feature.
