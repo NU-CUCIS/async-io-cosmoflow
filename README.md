@@ -6,11 +6,11 @@ Jan Balewski's CosmoFlow repository shows where the Cosmology data files are loc
 The data parallel training is parallelized using Horovod [3].
 For scalable parallel training, an asynchronous I/O module has been implemented based on python multiprocessing package.
 
-* [1]: [Mathuriya et al., CosmoFlow: Using Deep Learning to Learn the Universe at Scale, SC 18](https://arxiv.org/abs/1808.04728)
-* [2]: [Oyama et al., Toward Training a Large 3D Cosmological CNN with Hybrid Parallelization, 2019](https://www.osti.gov/servlets/purl/1548314)
-* [3]: [Sergeev et al., Horovod: fast and easy distributed deep learning in TensorFlow](https://github.com/horovod/horovod#citation)
-* [4]: [CosmoFlow develeoped at NERSC (based on TensorFlow 1.x)](https://urldefense.com/v3/__https://github.com/NERSC/CosmoFlow__;!!Dq0X2DkFhyF93HkjWTBQKhk!BmY4R1jYNnd3fYBHe8ShstXFYUMmeNTaiF8uHMreftTMDBdIaNvO_a2Pc-XM7JA6NYwlPK8EF2s4JlXm$)
-* [5]: [Jan Balewski's CosmoFlow repository](https://bitbucket.org/balewski/cosmoflow/src/master/)
+  * [1]: [Mathuriya et al., CosmoFlow: Using Deep Learning to Learn the Universe at Scale, SC 18](https://arxiv.org/abs/1808.04728)
+  * [2]: [Oyama et al., Toward Training a Large 3D Cosmological CNN with Hybrid Parallelization, 2019](https://www.osti.gov/servlets/purl/1548314)
+  * [3]: [Sergeev et al., Horovod: fast and easy distributed deep learning in TensorFlow](https://github.com/horovod/horovod#citation)
+  * [4]: [CosmoFlow develeoped at NERSC (based on TensorFlow 1.x)](https://urldefense.com/v3/__https://github.com/NERSC/CosmoFlow__;!!Dq0X2DkFhyF93HkjWTBQKhk!BmY4R1jYNnd3fYBHe8ShstXFYUMmeNTaiF8uHMreftTMDBdIaNvO_a2Pc-XM7JA6NYwlPK8EF2s4JlXm$)
+  * [5]: [Jan Balewski's CosmoFlow repository](https://bitbucket.org/balewski/cosmoflow/src/master/)
 
 ## Software Requirements
   * TensorFlow > 2.0.0 (2.2.0 is recommended)
@@ -83,3 +83,6 @@ python3 main.py --epochs=3 \
   * Wei-keng Liao <wkliao@northwestern.edu>
   * Alex Sim <asim@lbl.gov>
   * John Wu <kwu@lbl.gov>
+
+## Project Funding Supports
+This material is based upon work supported by the U.S. Department of Energy, Office of Science, Office of Advanced Scientific Computing Research, Scientific Discovery through Advanced Computing ([SciDAC](https://urldefense.com/v3/__https://www.scidac.gov__;!!Dq0X2DkFhyF93HkjWTBQKhk!Cmym2evb4AzgPssUBMznqcWjp9PQWcJOGyWbQmtttMDADzfRazbFzh86OnJYEzqQAnCgznN6q0voRSjW$ )) program. This project is a collaborative work of Northwestern University and Lawrence Berkeley National Laboratory supported by the [RAPIDS Institute](https://urldefense.com/v3/__https://rapids.lbl.gov__;!!Dq0X2DkFhyF93HkjWTBQKhk!Cmym2evb4AzgPssUBMznqcWjp9PQWcJOGyWbQmtttMDADzfRazbFzh86OnJYEzqQAnCgznN6q5H2u8n8$ ).
