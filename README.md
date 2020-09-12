@@ -2,6 +2,7 @@
 This program is a CosmoFlow implementation with TensorFlow 2.
 The original CosmoFlow paper has been published in SC18 [1] and the source code is available in [4].
 This program implements LBANN model proposed in [2].
+Jan Balewski's CosmoFlow repository shows where the Cosmology data files are located in Cori storage space [5].
 The data parallel training is parallelized using Horovod [3].
 For scalable parallel training, an asynchronous I/O module has been implemented based on python multiprocessing package.
 
@@ -9,6 +10,7 @@ For scalable parallel training, an asynchronous I/O module has been implemented 
 * [2]: [Oyama et al., Toward Training a Large 3D Cosmological CNN with Hybrid Parallelization, 2019](https://www.osti.gov/servlets/purl/1548314)
 * [3]: [Sergeev et al., Horovod: fast and easy distributed deep learning in TensorFlow](https://github.com/horovod/horovod#citation)
 * [4]: [CosmoFlow develeoped at NERSC (based on TensorFlow 1.x)](https://urldefense.com/v3/__https://github.com/NERSC/CosmoFlow__;!!Dq0X2DkFhyF93HkjWTBQKhk!BmY4R1jYNnd3fYBHe8ShstXFYUMmeNTaiF8uHMreftTMDBdIaNvO_a2Pc-XM7JA6NYwlPK8EF2s4JlXm$)
+* [5]: [Jan Balewski's CosmoFlow repository](https://bitbucket.org/balewski/cosmoflow/src/master/)
 
 ## Software Requirements
   * TensorFlow > 2.0.0 (2.2.0 is recommended)
