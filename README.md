@@ -73,16 +73,16 @@ Users are also referrred to the [continuous software development by Jan Balewski
    ```
 
 ## Development team
-  * Sunwoo Lee <sunwoolee1.2014@u.northwestern.edu>
-  * Wei-keng Liao <wkliao@northwestern.edu>
-  * Alex Sim <asim@lbl.gov>
-  * John Wu <kwu@lbl.gov>
-  * Jan Balewski <balewski@lbl.gov>
-  * Peter Nugent <penugent@lbl.gov>
+  * Sunwoo Lee <<sunwoolee1.2014@u.northwestern.edu>>
+  * Wei-keng Liao <<wkliao@northwestern.edu>>
+  * Alex Sim <<asim@lbl.gov>>
+  * John Wu <<kwu@lbl.gov>>
+  * Jan Balewski <<balewski@lbl.gov>>
+  * Peter Nugent <<penugent@lbl.gov>>
 
 ## Questions/Comments
-  * Sunwoo Lee <sunwoolee1.2014@u.northwestern.edu>
-  * Wei-keng Liao <wkliao@northwestern.edu>
+  * Sunwoo Lee <<sunwoolee1.2014@u.northwestern.edu>>
+  * Wei-keng Liao <<wkliao@northwestern.edu>>
 
 ## Project Funding Supports
 This material is based upon work supported by the U.S. Department of Energy, Office of Science, Office of Advanced Scientific Computing Research, Scientific Discovery through Advanced Computing ([SciDAC](https://www.scidac.gov)) program. This project is a joint work of Northwestern University and Lawrence Berkeley National Laboratory supported by the [RAPIDS Institute](https://rapids.lbl.gov).
