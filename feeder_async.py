@@ -188,7 +188,7 @@ class cosmoflow_async:
         if self.num_cached_valid_batches == 0:
             if self.valid_file_index == len(self.valid_files):
                 print ("batch_id: " + str(batch_id) + " Invalid valid_file_index! " + str(self.valid_file_index) + "/" + str(len(self.valid_files)))
-            f = h5py.File(self.valid_files[self.valid_file_index], 'r')
+            f = h5py.File(self.local_valid_files[self.valid_file_index], 'r')
             self.valid_file_index += 1
             self.images = f['3Dmap'][:]
             self.labels = f['unitPar'][:]
