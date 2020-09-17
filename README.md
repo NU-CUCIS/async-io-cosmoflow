@@ -1,9 +1,17 @@
 # tf2-cosmoflow
-This program is an implementation of CosmoFlowusing TensorFlow 2.x.
-The work of original CosmoFlow was published as a [technical paper](https://dl.acm.org/doi/10.1109/SC.2018.00068) in SC18 and its source codes based on TensorFlow 1.x are available [here](https://github.com/NERSC/CosmoFlow).
-Programs in this repo improve CosmoFlow by implementing [LBANN model](https://www.osti.gov/servlets/purl/1548314) and parallelizing it using [Horovod](https://github.com/horovod/horovod#citation).
-To reduce the I/O cost and improve the end-to-end training time, we develop an asynchronous I/O module based on python multiprocessing package to overlap file I/O with the training.
-Users are also referrred to the [continuous software development by Jan Balewski](https://bitbucket.org/balewski/cosmoflow/src/master/), which also points to the location of input data sets available on Cori at NERSC.
+This repo contains programs that implement CosmoFlow using TensorFlow 2.x.
+The original work CosmoFlow is described in a [technical paper](https://dl.acm.org/doi/10.1109/SC.2018.00068)
+published in SC18 and its source codes implemented using TensorFlow 1.x are
+available [here](https://github.com/NERSC/CosmoFlow).
+Programs in this repo improve CosmoFlow by implementing [LBANN model](https://www.osti.gov/servlets/purl/1548314).
+and parallelizing it using [Horovod](https://github.com/horovod/horovod#citation).
+To reduce the cost of reading input files and thus improve the end-to-end
+training time, we develop an asynchronous I/O module based on python
+multiprocessing package to overlap file reads with the computation of model
+training.
+To obtain input files, users are referrred to [this repo](https://bitbucket.org/balewski/cosmoflow/src/master/)
+of continuous software development by Jan Balewski, which points to the location
+of input files available on Cori at NERSC.
 
 ## Software Requirements
   * TensorFlow > 2.0.0 (2.2.0 is recommended)
@@ -54,11 +62,12 @@ Users are also referrred to the [continuous software development by Jan Balewski
    * `--enable`: (0:off / 1:on) disable/enable evaluation of the trained model.
    * `--async_io`: (0:off / 1:on) disable/enable the asynchronous I/O feature.
 
-4. Start the Training
-   Parallel jobs can be submitted to the batch queue using a script file.
-   An example for running on Cori is given in file [./sbatch.sh](sbatch.sh).
-   File [./myjob.lsf](myjob.lsf) is an example script for Summit at OLCF.
-   Below shows an example command for training.
+4. Start Training
+   Jobs of parallel training can be submitted to Cori's batch queue using
+   a script file. An example is given in [./sbatch.sh](sbatch.sh).
+   File [./myjob.lsf](myjob.lsf) is an example script file for running on
+   Summit at OLCF. Below shows an example python command that can be used
+   in the job script file.
    ```
    python3 main.py --epochs=3 \
                    --batch_size=4 \
@@ -73,12 +82,15 @@ Users are also referrred to the [continuous software development by Jan Balewski
    ```
 
 ## Development team
-  * Sunwoo Lee <<sunwoolee1.2014@u.northwestern.edu>>
-  * Wei-keng Liao <<wkliao@northwestern.edu>>
-  * Alex Sim <<asim@lbl.gov>>
-  * John Wu <<kwu@lbl.gov>>
-  * Jan Balewski <<balewski@lbl.gov>>
-  * Peter Nugent <<penugent@lbl.gov>>
+  * Northwestern University
+    + Sunwoo Lee <<sunwoolee1.2014@u.northwestern.edu>>
+    + Kewei Wang <<keweiwang2019@u.northwestern.edu>>
+    + Wei-keng Liao <<wkliao@northwestern.edu>>
+  * Lawrence Berkeley National Laboratory
+    + Alex Sim <<asim@lbl.gov>>
+    + Jan Balewski <<balewski@lbl.gov>>
+    + Peter Nugent <<penugent@lbl.gov>>
+    + John Wu <<kwu@lbl.gov>>
 
 ## Questions/Comments
   * Sunwoo Lee <<sunwoolee1.2014@u.northwestern.edu>>
