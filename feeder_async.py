@@ -78,7 +78,6 @@ class cosmoflow_async:
             print ("Number of samples per file: " + str(self.samples_per_file))
             print ("Label size: " + str(self.label_size))
             print ("sourceDir.prj: " + str(self.prj))
-            print ("sourceDir.cfs: " + str(self.cfs))
             print ("subDir: " + str(self.subdir))
         print ("Buffer size: " + str(self.buffer_size) + " samples")
 
