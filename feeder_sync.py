@@ -127,7 +127,6 @@ class cosmoflow_sync:
 
         self.shuffled_sample_index = np.arange(128)
         self.rng.shuffle(self.shuffled_sample_index)
-        self.comm.Bcast(self.shuffled_sample_index, root = 0) 
 
     '''
     Sample-based prefetch
