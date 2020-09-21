@@ -17,8 +17,7 @@ class Trainer:
     def __init__ (self, model, async_io = 1, dataset = None,
                   do_shuffle = 0, num_epochs = 1, checkpoint_dir = "./checkpoint",
                   do_checkpoint = 0, do_record_acc = 0, do_evaluate = 0):
-        self.rank = MPI.COMM_WORLD.Get_rank()
-        #self.rank = hvd.rank()
+        self.rank = hvd.rank()
         self.num_epochs = num_epochs
         self.async_io = async_io
         self.dataset = dataset
@@ -100,6 +99,7 @@ class Trainer:
                 valid_loss = self.evaluate(valid_dataset)
                 valid_loss_np = valid_loss.numpy()
                 average_loss = MPI.COMM_WORLD.allreduce(valid_loss_np, MPI.SUM) / MPI.COMM_WORLD.Get_size()
+                #average_loss = valid_loss_np
 
                 print ("Epoch " + str(self.checkpoint.epoch.numpy()) +\
                        " training loss = " + str(train_loss.numpy()) +\
