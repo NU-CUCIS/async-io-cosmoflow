@@ -56,8 +56,7 @@ class cosmoflow_async:
 
                 if key == 'sourceDir':
                     self.prj = value['prj']
-                    self.cfs = value['cfs']
-                    
+
                 if key == 'subDir':
                     self.subdir = value
 
