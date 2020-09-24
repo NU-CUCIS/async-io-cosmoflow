@@ -85,18 +85,15 @@ class cosmoflow_async:
         self.offset = int(self.num_train_files / self.size) * self.rank
         self.shared_shuffled_index = mp.RawArray('i', self.num_train_files)
 
-        # First, calculate the number of local files.
+        # Calculate the number of local training files.
         common = int(self.num_train_files / self.size)
         remainder = self.num_train_files % self.size
-
         if self.rank < remainder:
             self.num_local_train_files = common + 1
         else:
             self.num_local_train_files = common
 
-        self.num_train_batches = int(self.batches_per_file * self.num_local_train_files)
-
-        # Count the number of local files for validaiton.
+        # Calculate the number of local validation files.
         num_local_valid_files = int(math.floor(len(self.valid_files) / self.size))
         local_valid_files_off = num_local_valid_files * self.rank
         if self.rank < (len(self.valid_files) % self.size):
@@ -107,6 +104,8 @@ class cosmoflow_async:
         self.local_valid_files = self.valid_files[local_valid_files_off:
                                                   local_valid_files_off + num_local_valid_files]
 
+        # Calculate the number of batches for training and validation.
+        self.num_train_batches = int(self.batches_per_file * self.num_local_train_files)
         self.num_valid_batches = 0
         for file_path in self.local_valid_files:
             f = h5py.File(file_path, 'r')
