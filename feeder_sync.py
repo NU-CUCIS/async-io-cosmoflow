@@ -14,26 +14,17 @@ from mpi4py import MPI
 import multiprocessing as mp
 
 class cosmoflow_sync:
-    def __init__ (self, yaml_file, lock, cv,
-                  data, label, num_samples,
+    def __init__ (self, yaml_file,
                   do_shuffle = 0,
                   batch_size = 4,
-                  buffer_size = 128,
-                  cache_size = 0):
+                  buffer_size = 128):
         self.comm = MPI.COMM_WORLD
         self.size = self.comm.Get_size()
         self.rank = self.comm.Get_rank()
         #self.size = hvd.size()
         #self.rank = hvd.rank()
-        self.lock = lock
-        self.cv = cv
-        self.data = data
-        self.label = label
-        self.num_samples = num_samples
-        self.num_buffers = len(data)
         self.batch_size = batch_size
         self.buffer_size = buffer_size
-        self.cache_size = cache_size
         self.read_index = 0
         self.rng = np.random.default_rng()
         self.do_shuffle = do_shuffle

@@ -26,8 +26,6 @@ def get_parser():
                         help = "number of epochs")
     parser.add_argument("-k", "--buffer_size", type = int, default = 128,
                         help = "buffer size with respect to the number of samples")
-    parser.add_argument("-c", "--cache_size", type = int, default = 0,
-                        help = "cache size with respect to the number of samples")
     parser.add_argument("-f", "--file_shuffle", type = int, default = 0,
                         help = "shuffle the files across the processes")
     parser.add_argument("-r", "--record_acc", type = int, default = 0,
@@ -85,18 +83,16 @@ if __name__ == "__main__":
                                   data, label, num_samples,
                                   batch_size = args.batch_size,
                                   buffer_size = args.buffer_size)
+        # Initialize the I/O daemon.
+        async_io_module = IOdaemon(dataset,
+                                   args.file_shuffle,
+                                   args.buffer_size,
+                                   args.cache_size)
     else:
-        dataset = cosmoflow_sync(args.config, lock, cv,
-                                 data, label, num_samples,
+        dataset = cosmoflow_sync(args.config,
+                                 do_shuffle = args.file_shuffle,
                                  batch_size = args.batch_size,
-                                 buffer_size = args.buffer_size,
-                                 cache_size = args.cache_size)
-
-    # Initialize the I/O daemon.
-    async_io_module = IOdaemon(dataset,
-                               args.file_shuffle,
-                               args.buffer_size,
-                               args.cache_size)
+                                 buffer_size = args.buffer_size)
 
     trainer = Trainer(cosmo_model,
                       args.async_io,
