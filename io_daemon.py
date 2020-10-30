@@ -10,7 +10,7 @@ import multiprocessing
 import horovod.tensorflow as hvd
 
 class IOdaemon:
-    def __init__ (self, dataset, do_shuffle = 0, buffer_size = 128,  cache_size = 0):
+    def __init__ (self, dataset, do_shuffle = 0, buffer_size = 128):
         #self.comm = MPI.COMM_WORLD
         #self.size = self.comm.Get_size()
         #self.rank = self.comm.Get_rank()
@@ -20,7 +20,6 @@ class IOdaemon:
         self.dataset = dataset
         self.shuffled_index = np.arange(self.dataset.num_train_files)
         self.buffer_size = buffer_size
-        self.cache_size = cache_size
         self.do_shuffle = do_shuffle
         self.in_file_off = 0
         self.num_train_files = len(dataset.train_files)

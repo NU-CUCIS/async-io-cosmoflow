@@ -86,8 +86,7 @@ if __name__ == "__main__":
         # Initialize the I/O daemon.
         async_io_module = IOdaemon(dataset,
                                    args.file_shuffle,
-                                   args.buffer_size,
-                                   args.cache_size)
+                                   args.buffer_size)
     else:
         dataset = cosmoflow_sync(args.config,
                                  do_shuffle = args.file_shuffle,
