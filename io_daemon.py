@@ -6,14 +6,10 @@ import time
 import h5py
 import numpy as np
 import multiprocessing
-#from mpi4py import MPI
 import horovod.tensorflow as hvd
 
 class IOdaemon:
     def __init__ (self, dataset, do_shuffle = 0, buffer_size = 128):
-        #self.comm = MPI.COMM_WORLD
-        #self.size = self.comm.Get_size()
-        #self.rank = self.comm.Get_rank()
         self.size = hvd.size()
         self.rank = hvd.rank()
         self.rng = np.random.default_rng()

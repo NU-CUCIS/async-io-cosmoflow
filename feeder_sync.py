@@ -10,7 +10,6 @@ import numpy as np
 import h5py
 import math
 from mpi4py import MPI
-#import horovod.tensorflow as hvd
 import multiprocessing as mp
 
 class cosmoflow_sync:
@@ -21,8 +20,6 @@ class cosmoflow_sync:
         self.comm = MPI.COMM_WORLD
         self.size = self.comm.Get_size()
         self.rank = self.comm.Get_rank()
-        #self.size = hvd.size()
-        #self.rank = hvd.rank()
         self.batch_size = batch_size
         self.buffer_size = buffer_size
         self.read_index = 0
