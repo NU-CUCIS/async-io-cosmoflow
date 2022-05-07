@@ -1,8 +1,8 @@
 # tf2-cosmoflow
-This repo contains programs that implement CosmoFlow using TensorFlow 2.x.
-The original work CosmoFlow is described in a [technical paper](https://dl.acm.org/doi/10.1109/SC.2018.00068)
-published in SC18 and its source codes implemented using TensorFlow 1.x are
-available [here](https://github.com/NERSC/CosmoFlow).
+This repository contains programs that implement CosmoFlow using TensorFlow 2.x.
+The original work CosmoFlow is described in an [SC18 paper](https://dl.acm.org/doi/10.1109/SC.2018.00068).
+Its source codes use TensorFlow 1.x and are available on [github](https://github.com/NERSC/CosmoFlow)
+and [MLPerf](https://mlcommons.org/en/training-hpc-10/).
 Programs in this repo improve CosmoFlow by implementing [LBANN model](https://www.osti.gov/servlets/purl/1548314).
 and parallelizing it using [Horovod](https://github.com/horovod/horovod#citation).
 To reduce the cost of reading input files and thus improve the end-to-end
@@ -80,6 +80,9 @@ of input files available on Cori at NERSC.
                    --evaluate=0 \
                    --async_io=1
    ```
+
+## Publication
+* Sunwoo Lee, Qiao Kang, Kewei Wang, Jan Balewski, Alex Sim, Ankit Agrawal, Alok Choudhary, Peter Nugent, Kesheng Wu, and Wei-keng Liao. [Asynchronous I/O Strategy for Large-Scale Deep Learning Applications](https://doi.org/10.1109/HiPC53243.2021.00046). In the 28th International Conference on High-Performance Computing, Data, and Analytics (HiPC), December 2021.
 
 ## Development team
   * Northwestern University
