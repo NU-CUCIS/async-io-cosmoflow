@@ -1,17 +1,21 @@
-# tf2-cosmoflow
-This repository contains programs that implement CosmoFlow using TensorFlow 2.x.
-The original work CosmoFlow is described in an [SC18 paper](https://dl.acm.org/doi/10.1109/SC.2018.00068).
-Its source codes use TensorFlow 1.x and are available on [github](https://github.com/NERSC/CosmoFlow)
+# Asynchronous I/O Support for CosmoFlow
+This repository contains an improvement of
+[CosmoFlow](https://dl.acm.org/doi/10.1109/SC.2018.00068)
+by adding the support of asynchronous data read opertions.
+CosmoFlow is a parallel deep learning application developed for studying
+data generated from cosmological N-body dark matter simulations.
+The source codes of CosmoFlow are available on both
+[github](https://github.com/NERSC/CosmoFlow)
 and [MLPerf](https://mlcommons.org/en/training-hpc-10/).
-Programs in this repo improve CosmoFlow by implementing [LBANN model](https://www.osti.gov/servlets/purl/1548314).
+Programs in this repo update the CosmoFlow source codes by incorporating
+the [LBANN model](https://www.osti.gov/servlets/purl/1548314)
 and parallelizing it using [Horovod](https://github.com/horovod/horovod#citation).
-To reduce the cost of reading input files and thus improve the end-to-end
-training time, we develop an asynchronous I/O module based on python
-multiprocessing package to overlap file reads with the computation of model
-training.
-To obtain input files, users are referrred to [this repo](https://bitbucket.org/balewski/cosmoflow/src/master/)
-of continuous software development by Jan Balewski, which points to the location
-of input files available on Cori at NERSC.
+The [training data files](https://portal.nersc.gov/project/m3363/) are available at NERSC.
+
+To reduce the cost of reading the training data from files
+and thus improve the end-to-end training time, this repo adds an asynchronous
+I/O module using the python multiprocessing package, which enables
+overlapping of file reads with the computation of model training on GPUs.
 
 ## Software Requirements
   * TensorFlow > 2.0.0 (2.2.0 is recommended)
